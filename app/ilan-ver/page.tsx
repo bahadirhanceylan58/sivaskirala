@@ -17,13 +17,42 @@ export default function AddItemPage() {
         }
     };
 
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [price, setPrice] = useState('');
+    const [category, setCategory] = useState('Elektronik');
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        alert('İlan başarıyla oluşturuldu! (Simülasyon)');
-        setLoading(false);
+
+        try {
+            const { MockService } = await import('@/lib/mock-service');
+            const user = MockService.getCurrentUser();
+
+            if (!user) {
+                alert('İlan vermek için önce giriş yapmalısınız!');
+                window.location.href = '/giris-yap';
+                return;
+            }
+
+            await MockService.addProduct({
+                title,
+                category,
+                price: parseFloat(price),
+                image: images[0] || '', // Use first image or empty
+                ownerId: user.id
+            });
+
+            alert('İlanınız başarıyla yayınlandı!');
+            window.location.href = '/';
+
+        } catch (error) {
+            console.error(error);
+            alert('Bir hata oluştu.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -55,14 +84,25 @@ export default function AddItemPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">İlan Başlığı</label>
-                                <input type="text" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none" placeholder="Örn: Sony Kamera Seti" required />
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none"
+                                    placeholder="Örn: Sony Kamera Seti"
+                                    required
+                                    value={title}
+                                    onChange={e => setTitle(e.target.value)}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Kategori</label>
-                                <select className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none">
+                                <select
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none"
+                                    value={category}
+                                    onChange={e => setCategory(e.target.value)}
+                                >
                                     <option>Elektronik</option>
                                     <option>Organizasyon & Düğün</option>
-                                    <option>Giyim & Abiye</option>
+                                    <option>Abiye & Giyim</option>
                                     <option>Kamp & Outdoor</option>
                                     <option>Diğer</option>
                                 </select>
@@ -72,14 +112,28 @@ export default function AddItemPage() {
                         {/* Description */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Açıklama</label>
-                            <textarea rows={4} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none" placeholder="Ürününüzü detaylıca anlatın..." required></textarea>
+                            <textarea
+                                rows={4}
+                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none"
+                                placeholder="Ürününüzü detaylıca anlatın..."
+                                required
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                            ></textarea>
                         </div>
 
                         {/* Pricing */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Günlük Fiyat (₺)</label>
-                                <input type="number" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none" placeholder="0.00" required />
+                                <input
+                                    type="number"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none"
+                                    placeholder="0.00"
+                                    required
+                                    value={price}
+                                    onChange={e => setPrice(e.target.value)}
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Depozito (₺)</label>

@@ -18,14 +18,11 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            // In a real scenario with keys:
-            // const { error } = await supabase.auth.signInWithPassword({ email, password });
-            // if (error) throw error;
+            // Use Mock Service
+            const { MockService } = await import('@/lib/mock-service');
+            await MockService.login(email, password);
 
-            // For Demo/Reference without keys:
-            console.log('Login attempt:', email);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
-            alert('Giriş simülasyonu başarılı! (Gerçek bağlantı için Supabase anahtarları gereklidir)');
+            window.location.href = '/'; // Redirect to home
 
         } catch (err: any) {
             setError(err.message);

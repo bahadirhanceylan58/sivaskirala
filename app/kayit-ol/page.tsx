@@ -19,10 +19,12 @@ export default function RegisterPage() {
         setError(null);
 
         try {
-            // Simulation for now
-            console.log('Register:', { email, fullName });
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            alert('Kayıt simülasyonu başarılı! (Supabase bağlantısı bekleniyor)');
+            // Use Mock Service for now
+            const { MockService } = await import('@/lib/mock-service');
+            await MockService.register(email, fullName, password);
+
+            alert('Kayıt başarılı! Aramıza hoşgeldiniz.');
+            window.location.href = '/'; // Redirect to home
 
         } catch (err: any) {
             setError(err.message);

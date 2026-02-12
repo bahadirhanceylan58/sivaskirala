@@ -2,24 +2,32 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, ShoppingCartIcon, UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [user, setUser] = useState<any>(null);
+
+    // Check auth on mount
+    useEffect(() => {
+        import('@/lib/mock-service').then(({ MockService }) => {
+            setUser(MockService.getCurrentUser());
+        });
+    }, []);
 
     return (
         <header className="bg-white shadow-sm sticky top-0 z-50 border-b-4 border-primary">
             {/* Top Bar (Mobile/Desktop) */}
             <div className="container mx-auto px-4 py-3 flex items-center justify-between">
                 {/* Logo */}
-                <Link href="/" className="flex-shrink-0">
+                <Link href="/" className="flex-shrink-0 flex items-center">
                     <Image
                         src="/logo.jpg"
                         alt="Sivas Kirala"
                         width={180}
                         height={60}
-                        className="h-14 w-auto object-contain"
+                        className="h-16 w-auto object-contain mix-blend-multiply opacity-95 hover:opacity-100 transition-opacity"
                         priority
                     />
                 </Link>
@@ -38,10 +46,19 @@ const Navbar = () => {
 
                 {/* Actions */}
                 <div className="flex items-center space-x-4">
-                    <Link href="/giris-yap" className="hidden lg:flex items-center text-gray-700 hover:text-primary font-medium transition-colors">
-                        <UserIcon className="h-6 w-6 mr-1" />
-                        <span>Giriş Yap</span>
-                    </Link>
+                    {user ? (
+                        <Link href="/hesabim" className="hidden lg:flex items-center text-gray-700 hover:text-primary font-medium transition-colors">
+                            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-primary font-bold mr-2">
+                                {user.fullName.charAt(0)}
+                            </div>
+                            <span>Hesabım</span>
+                        </Link>
+                    ) : (
+                        <Link href="/giris-yap" className="hidden lg:flex items-center text-gray-700 hover:text-primary font-medium transition-colors">
+                            <UserIcon className="h-6 w-6 mr-1" />
+                            <span>Giriş Yap</span>
+                        </Link>
+                    )}
                     <Link href="/ilan-ver" className="hidden lg:block bg-primary text-white px-5 py-2 rounded-full font-bold hover:bg-secondary transition-transform hover:scale-105 shadow-md shadow-green-100">
                         İlan Ver
                     </Link>
@@ -98,10 +115,19 @@ const Navbar = () => {
                             <Link href="/kategori/hobi-oyun" className="text-gray-700 hover:text-primary font-medium">Hobi & Oyun</Link>
                             <Link href="/kategori/ev-yasam" className="text-gray-700 hover:text-primary font-medium">Ev & Yaşam</Link>
                             <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col gap-3">
-                                <Link href="/giris-yap" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
-                                    <UserIcon className="h-5 w-5" />
-                                    <span>Giriş Yap / Üye Ol</span>
-                                </Link>
+                                {user ? (
+                                    <Link href="/hesabim" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
+                                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-primary font-bold text-xs">
+                                            {user.fullName.charAt(0)}
+                                        </div>
+                                        <span>Hesabım</span>
+                                    </Link>
+                                ) : (
+                                    <Link href="/giris-yap" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
+                                        <UserIcon className="h-5 w-5" />
+                                        <span>Giriş Yap / Üye Ol</span>
+                                    </Link>
+                                )}
                                 <Link href="/ilan-ver" className="flex items-center justify-center space-x-2 bg-primary text-white py-2 rounded-lg font-bold hover:bg-secondary">
                                     <span>+ İlan Ver</span>
                                 </Link>
