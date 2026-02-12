@@ -9,7 +9,7 @@ const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     return (
-        <header className="bg-white shadow-sm sticky top-0 z-50">
+        <header className="bg-white shadow-sm sticky top-0 z-50 border-b-4 border-primary">
             {/* Top Bar (Mobile/Desktop) */}
             <div className="container mx-auto px-4 py-3 flex items-center justify-between">
                 {/* Logo */}
@@ -38,12 +38,14 @@ const Navbar = () => {
 
                 {/* Actions */}
                 <div className="flex items-center space-x-4">
-                    <Link href="/login" className="hidden md:flex items-center space-x-1 text-gray-700 hover:text-primary font-medium transition-colors">
-                        <UserIcon className="h-6 w-6" />
-                        <span className="text-sm">Giriş Yap</span>
+                    <Link href="/giris-yap" className="hidden lg:flex items-center text-gray-700 hover:text-primary font-medium transition-colors">
+                        <UserIcon className="h-6 w-6 mr-1" />
+                        <span>Giriş Yap</span>
                     </Link>
-
-                    <Link href="/cart" className="relative text-gray-700 hover:text-primary transition-colors">
+                    <Link href="/ilan-ver" className="hidden lg:block bg-primary text-white px-5 py-2 rounded-full font-bold hover:bg-secondary transition-transform hover:scale-105 shadow-md shadow-green-100">
+                        İlan Ver
+                    </Link>
+                    <Link href="/cart" className="relative group">
                         <ShoppingCartIcon className="h-6 w-6" />
                         <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">0</span>
                     </Link>
@@ -64,17 +66,17 @@ const Navbar = () => {
 
             {/* Categories Bar - Desktop Only */}
             <nav className="hidden lg:block border-t border-gray-100 bg-gray-50/50">
-                <div className="container mx-auto px-4">
-                    <ul className="flex items-center space-x-8 py-3 text-sm font-medium text-gray-600 overflow-x-auto no-scrollbar">
-                        <li><Link href="/kategori/elektronik" className="hover:text-primary whitespace-nowrap transition-colors">Elektronik</Link></li>
-                        <li><Link href="/kategori/giyim" className="hover:text-primary whitespace-nowrap transition-colors">Giyim & Aksesuar</Link></li>
-                        <li><Link href="/kategori/anne-bebek" className="hover:text-primary whitespace-nowrap transition-colors">Anne & Bebek</Link></li>
-                        <li><Link href="/kategori/spor-outdoor" className="hover:text-primary whitespace-nowrap transition-colors">Spor & Outdoor</Link></li>
-                        <li><Link href="/kategori/hobi-oyun" className="hover:text-primary whitespace-nowrap transition-colors">Hobi & Oyun</Link></li>
-                        <li><Link href="/kategori/ev-yasam" className="hover:text-primary whitespace-nowrap transition-colors">Ev & Yaşam</Link></li>
-                    </ul>
+                {/* Dynamic Category Links (Desktop) */}
+                <div className="container mx-auto px-4 py-3 flex space-x-6 text-sm font-medium text-gray-600 overflow-x-auto no-scrollbar">
+                    <Link href="/kategori/organizasyon" className="hover:text-primary whitespace-nowrap">Organizasyon & Düğün</Link>
+                    <Link href="/kategori/ses-goruntu" className="hover:text-primary whitespace-nowrap">Ses & Görüntü</Link>
+                    <Link href="/kategori/abiye-giyim" className="hover:text-primary whitespace-nowrap">Abiye & Giyim</Link>
+                    <Link href="/kategori/kamera" className="hover:text-primary whitespace-nowrap">Fotoğraf & Kamera</Link>
+                    <Link href="/kategori/kamp" className="hover:text-primary whitespace-nowrap">Kamp & Outdoor</Link>
+                    <Link href="/kategori/elektronik" className="hover:text-primary whitespace-nowrap">Elektronik</Link>
                 </div>
             </nav>
+            {/* Mobile Menu */}
 
             {/* Mobile Menu & Search */}
             {isMobileMenuOpen && (
@@ -95,10 +97,13 @@ const Navbar = () => {
                             <Link href="/kategori/spor-outdoor" className="text-gray-700 hover:text-primary font-medium">Spor & Outdoor</Link>
                             <Link href="/kategori/hobi-oyun" className="text-gray-700 hover:text-primary font-medium">Hobi & Oyun</Link>
                             <Link href="/kategori/ev-yasam" className="text-gray-700 hover:text-primary font-medium">Ev & Yaşam</Link>
-                            <div className="border-t border-gray-100 pt-3 mt-2">
-                                <Link href="/login" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
+                            <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col gap-3">
+                                <Link href="/giris-yap" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
                                     <UserIcon className="h-5 w-5" />
                                     <span>Giriş Yap / Üye Ol</span>
+                                </Link>
+                                <Link href="/ilan-ver" className="flex items-center justify-center space-x-2 bg-primary text-white py-2 rounded-lg font-bold hover:bg-secondary">
+                                    <span>+ İlan Ver</span>
                                 </Link>
                             </div>
                         </nav>
