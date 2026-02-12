@@ -11,8 +11,33 @@ const Navbar = () => {
 
     // Check auth on mount
     useEffect(() => {
-        import('@/lib/mock-service').then(({ MockService }) => {
-            setUser(MockService.getCurrentUser());
+        // Get initial session
+        import('@/lib/supabase').then(({ supabase }) => {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                if (session?.user) {
+                    // Get user details
+                    setUser({
+                        id: session.user.id,
+                        email: session.user.email,
+                        fullName: session.user.user_metadata?.full_name || 'Kullanıcı'
+                    });
+                }
+            });
+
+            // Listen for changes
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                if (session?.user) {
+                    setUser({
+                        id: session.user.id,
+                        email: session.user.email,
+                        fullName: session.user.user_metadata?.full_name || 'Kullanıcı'
+                    });
+                } else {
+                    setUser(null);
+                }
+            });
+
+            return () => subscription.unsubscribe();
         });
     }, []);
 

@@ -18,14 +18,41 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            // Use Mock Service
-            const { MockService } = await import('@/lib/mock-service');
-            await MockService.login(email, password);
+            // Attempt Supabase Login
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (error) throw error;
+
+            // If Supabase fails (e.g. no config), fallback to Mock for demo ONLY if we are in dev/demo mode
+            // For now, we assume we want real Auth.
+            // If you want to keep Mock as fallback:
+            /*
+            if (!data.user) {
+                const { MockService } = await import('@/lib/mock-service');
+                await MockService.login(email, password);
+            }
+            */
 
             window.location.href = '/'; // Redirect to home
 
         } catch (err: any) {
-            setError(err.message);
+            console.error('Login error:', err);
+            // Fallback to Mock if Supabase is not configured (for seamless demo transition)
+            if (err.message.includes('Supabase URL')) {
+                try {
+                    const { MockService } = await import('@/lib/mock-service');
+                    await MockService.login(email, password);
+                    window.location.href = '/';
+                    return;
+                } catch (mockErr: any) {
+                    setError(mockErr.message);
+                }
+            } else {
+                setError(err.message === 'Invalid login credentials' ? 'E-posta veya şifre hatalı.' : err.message);
+            }
         } finally {
             setLoading(false);
         }

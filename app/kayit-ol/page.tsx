@@ -19,15 +19,43 @@ export default function RegisterPage() {
         setError(null);
 
         try {
-            // Use Mock Service for now
-            const { MockService } = await import('@/lib/mock-service');
-            await MockService.register(email, fullName, password);
+            // Attempt Supabase Registration
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        full_name: fullName,
+                    },
+                },
+            });
 
-            alert('Kayıt başarılı! Aramıza hoşgeldiniz.');
-            window.location.href = '/'; // Redirect to home
+            if (error) throw error;
+
+            if (data.user) {
+                // Determine if email confirmation is required (Supabase default)
+                alert('Kayıt başarılı! Lütfen e-postanızı kontrol edip hesabınızı doğrulayın.');
+                window.location.href = '/giris-yap';
+            } else {
+                // Fallback logic if needed
+            }
 
         } catch (err: any) {
-            setError(err.message);
+            console.error('Register error:', err);
+            // Fallback to Mock if Supabase is not configured
+            if (err.message.includes('Supabase URL')) {
+                try {
+                    const { MockService } = await import('@/lib/mock-service');
+                    await MockService.register(email, fullName, password);
+                    alert('Kayıt başarılı! (Demo Modu)');
+                    window.location.href = '/';
+                    return;
+                } catch (mockErr: any) {
+                    setError(mockErr.message);
+                }
+            } else {
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }
