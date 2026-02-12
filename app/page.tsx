@@ -12,8 +12,8 @@ export default function Home() {
 
   useEffect(() => {
     MockService.getProducts().then((data) => {
-      // Show latest 4 products
-      setProducts(data.slice(-4).reverse());
+      // Show latest 8 products (data is already sorted by date desc)
+      setProducts(data.slice(0, 8));
     });
   }, []);
 

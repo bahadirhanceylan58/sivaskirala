@@ -102,6 +102,40 @@ export const MockService = {
     },
 
     // --- PRODUCTS ---
+    addProduct: async (productData: Omit<Product, 'id'>) => {
+        try {
+            const { data, error } = await supabase
+                .from('products')
+                .insert([
+                    {
+                        title: productData.title,
+                        description: productData.description,
+                        category: productData.category,
+                        price_per_day: productData.price,
+                        location: productData.location || 'Sivas Merkez',
+                        owner_id: productData.ownerId,
+                        images: productData.image ? [productData.image] : [],
+                        status: 'active'
+                    }
+                ])
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error adding product to Supabase:', error);
+                throw error;
+            }
+
+            return {
+                id: data.id,
+                ...productData
+            } as Product;
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    },
+
     getProducts: async () => {
         try {
             const { data, error } = await supabase
@@ -193,6 +227,68 @@ export const MockService = {
     },
 
     removeFromCart: (cartId: string) => {
-        // Implemented if needed
+        if (typeof window === 'undefined') return;
+        const cart = JSON.parse(localStorage.getItem('sivas_cart') || '[]');
+        const newCart = cart.filter((item: any) => item.cartId !== cartId);
+        localStorage.setItem('sivas_cart', JSON.stringify(newCart));
+        window.dispatchEvent(new Event('storage'));
+    },
+
+    clearCart: () => {
+        if (typeof window === 'undefined') return;
+        localStorage.removeItem('sivas_cart');
+        window.dispatchEvent(new Event('storage'));
+    },
+
+    // --- PROFILE ---
+    getUserListings: async (userId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .eq('owner_id', userId);
+
+            if (error) return [];
+
+            return data.map((item: any) => ({
+                id: item.id,
+                title: item.title,
+                price: item.price_per_day,
+                category: item.category,
+                image: item.images && item.images.length > 0 ? item.images[0] : '',
+                description: item.description,
+                location: item.location,
+                ownerId: item.owner_id,
+                features: item.features,
+                sizes: item.sizes,
+                status: item.status
+            })) as Product[];
+        } catch (e) {
+            console.error(e);
+            return [];
+        }
+    },
+
+    getUserRentals: async (userId: string) => {
+        try {
+            // Fetch bookings and join with products
+            const { data, error } = await supabase
+                .from('bookings')
+                .select('*, product:products(title, price_per_day)')
+                .eq('renter_id', userId);
+
+            if (error || !data) return [];
+
+            return data.map((item: any) => ({
+                id: item.id,
+                title: item.product?.title || 'Bilinmeyen Ürün',
+                date: item.start_date,
+                price: item.total_price,
+                status: item.status === 'approved' ? 'Aktif' : 'Beklemede'
+            }));
+        } catch (e) {
+            console.error(e);
+            return [];
+        }
     }
 };

@@ -50,7 +50,7 @@ export default function Hero() {
     }, []);
 
     return (
-        <div className="relative w-full h-[200px] md:h-[350px] overflow-hidden bg-gray-900 group">
+        <div className="relative w-full h-[500px] md:h-[600px] overflow-hidden bg-gray-900 group">
             {SLIDES.map((slide, index) => (
                 <div
                     key={slide.id}
@@ -63,15 +63,15 @@ export default function Hero() {
                         <img
                             src={slide.image}
                             alt={slide.title}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover opacity-60"
                         />
                         {/* Gradient Overlay for Readability */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
                     </div>
 
                     {/* Text Content */}
-                    <div className="absolute inset-0 flex items-center justify-center text-center px-4">
-                        <div className={`max-w-4xl transform transition-all duration-1000 delay-300 ${index === currentSlide ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
+                    <div className="absolute inset-0 flex items-center justify-center text-center px-4 z-30 pointer-events-none">
+                        <div className={`max-w-4xl transform transition-all duration-1000 delay-300 pointer-events-auto ${index === currentSlide ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
                             }`}>
                             <span className="inline-block py-1 px-3 rounded-full bg-primary/20 text-green-300 text-sm font-bold mb-4 backdrop-blur-sm border border-primary/30 uppercase tracking-wider">
                                 {slide.category}
@@ -81,7 +81,7 @@ export default function Hero() {
                             </h1>
                             <Link
                                 href={slide.link}
-                                className="inline-block bg-primary hover:bg-green-600 text-white font-bold py-4 px-10 rounded-full text-lg transition-all transform hover:scale-105 shadow-xl shadow-green-900/50"
+                                className="inline-block bg-primary hover:bg-green-600 text-white font-bold py-3 px-8 md:py-4 md:px-10 rounded-full text-lg transition-all transform hover:scale-105 shadow-xl shadow-green-900/50"
                             >
                                 {slide.cta}
                             </Link>
@@ -91,7 +91,7 @@ export default function Hero() {
             ))}
 
             {/* Navigation Dots */}
-            <div className="absolute bottom-10 left-0 right-0 z-20 flex justify-center gap-3">
+            <div className="absolute bottom-5 left-0 right-0 z-40 flex justify-center gap-3">
                 {SLIDES.map((_, index) => (
                     <button
                         key={index}

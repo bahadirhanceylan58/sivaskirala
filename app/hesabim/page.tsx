@@ -13,17 +13,39 @@ export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState<'listings' | 'rentals'>('listings');
 
     useEffect(() => {
-        // Client-side only
-        const currentUser = MockService.getCurrentUser();
-        if (!currentUser) {
-            window.location.href = '/giris-yap';
-            return;
-        }
-        setUser(currentUser);
+        const checkUser = async () => {
+            const { supabase } = await import('@/lib/supabase');
+            const { data: { session } } = await supabase.auth.getSession();
 
-        // Load data
-        setMyProducts(MockService.getUserListings(currentUser.id));
-        setMyRentals(MockService.getUserRentals(currentUser.id));
+            if (!session) {
+                window.location.href = '/giris-yap';
+                return;
+            }
+
+            // Get profile details
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+
+            setUser({
+                id: session.user.id,
+                email: session.user.email!,
+                fullName: profile?.full_name || session.user.user_metadata?.full_name || 'Kullanıcı',
+                role: profile?.role || 'user'
+            } as any);
+
+            // Load data
+            const { MockService } = await import('@/lib/mock-service');
+            const listings = await MockService.getUserListings(session.user.id);
+            const rentals = await MockService.getUserRentals(session.user.id);
+
+            setMyProducts(listings);
+            setMyRentals(rentals);
+        };
+
+        checkUser();
     }, []);
 
     if (!user) return null;
@@ -98,8 +120,9 @@ export default function DashboardPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {myProducts.map((product) => (
-                                <Link href={`/ilan/${product.id}`} key={product.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 block h-full group">
-                                    <div className="h-48 bg-gray-200 relative">
+                                <div key={product.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 block h-full group relative">
+                                    <Link href={`/ilan/${product.id}`} className="absolute inset-0 z-0"></Link>
+                                    <div className="h-48 bg-gray-200 relative pointer-events-none">
                                         {product.image ? (
                                             <img src={product.image} alt={product.title} className="w-full h-full object-cover" />
                                         ) : (
@@ -107,15 +130,19 @@ export default function DashboardPage() {
                                         )}
                                         <span className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-bold text-gray-700">Aktif</span>
                                     </div>
-                                    <div className="p-4">
+                                    <div className="p-4 relative z-10 pointer-events-none">
                                         <h3 className="font-bold text-lg mb-1 text-gray-900 group-hover:text-primary transition-colors">{product.title}</h3>
                                         <p className="text-primary font-bold">{product.price} ₺ <span className="text-gray-400 font-normal text-xs">/ Gün</span></p>
-                                        <div className="mt-3 flex justify-between items-center">
+                                        <div className="mt-3 flex justify-between items-center pointer-events-auto">
                                             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{product.category}</span>
-                                            <span className="text-xs text-gray-400">Düzenle →</span>
+                                            <div className="flex gap-3">
+                                                <Link href={`/ilan-duzenle/${product.id}`} className="text-xs text-blue-500 hover:text-blue-700 hover:underline">
+                                                    Düzenle
+                                                </Link>
+                                            </div>
                                         </div>
                                     </div>
-                                </Link>
+                                </div>
                             ))}
                         </div>
                     )
@@ -152,8 +179,8 @@ export default function DashboardPage() {
                         </div>
                     )
                 )}
-            </main>
+            </main >
             <Footer />
-        </div>
+        </div >
     );
 }

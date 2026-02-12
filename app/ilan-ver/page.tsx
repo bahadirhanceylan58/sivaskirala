@@ -27,29 +27,33 @@ export default function AddItemPage() {
         setLoading(true);
 
         try {
-            const { MockService } = await import('@/lib/mock-service');
-            const user = MockService.getCurrentUser();
+            const { supabase } = await import('@/lib/supabase');
+            const { data: { session } } = await supabase.auth.getSession();
 
-            if (!user) {
+            if (!session) {
                 alert('İlan vermek için önce giriş yapmalısınız!');
                 window.location.href = '/giris-yap';
                 return;
             }
 
+            const { MockService } = await import('@/lib/mock-service');
+
             await MockService.addProduct({
                 title,
                 category,
                 price: parseFloat(price),
-                image: images[0] || '', // Use first image or empty
-                ownerId: user.id
-            });
+                image: images[0] || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=1000', // Default image if none
+                ownerId: session.user.id,
+                description: description,
+                location: 'Sivas Merkez', // Default location
+            } as any); // Cast to any to avoid strict type checks for now, or match Product interface exactly
 
             alert('İlanınız başarıyla yayınlandı!');
             window.location.href = '/';
 
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert('Bir hata oluştu.');
+            alert('Bir hata oluştu: ' + (error.message || JSON.stringify(error)));
         } finally {
             setLoading(false);
         }

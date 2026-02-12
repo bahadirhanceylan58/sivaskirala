@@ -11,13 +11,57 @@ export default function CheckoutPage() {
     const [step, setStep] = useState<'processing' | 'success'>('processing');
 
     useEffect(() => {
-        // Simulate payment processing
-        const timer = setTimeout(() => {
-            MockService.clearCart();
-            setStep('success');
-        }, 2000);
+        const processCheckout = async () => {
+            try {
+                // 1. Get User
+                const { supabase } = await import('@/lib/supabase');
+                const { data: { session } } = await supabase.auth.getSession();
 
-        return () => clearTimeout(timer);
+                if (!session) {
+                    alert('Ödeme yapabilmek için giriş yapmalısınız.');
+                    window.location.href = '/giris-yap';
+                    return;
+                }
+
+                // 2. Get Cart
+                const { MockService } = await import('@/lib/mock-service');
+                const cart = MockService.getCart();
+
+                if (cart.length === 0) {
+                    window.location.href = '/cart';
+                    return;
+                }
+
+                // 3. Create Bookings in Supabase
+                const bookings = cart.map((item: any) => ({
+                    product_id: item.id,
+                    renter_id: session.user.id,
+                    start_date: new Date().toISOString(), // Starting today
+                    end_date: new Date(Date.now() + item.duration * 24 * 60 * 60 * 1000).toISOString(),
+                    total_price: item.price * item.duration,
+                    status: 'approved' // Auto-approve for now since payment is mocked
+                }));
+
+                const { error } = await supabase
+                    .from('bookings')
+                    .insert(bookings);
+
+                if (error) throw error;
+
+                // 4. Success
+                setTimeout(() => {
+                    MockService.clearCart();
+                    setStep('success');
+                }, 2000);
+
+            } catch (error: any) {
+                console.error('Checkout error:', error);
+                alert('Ödeme sırasında bir hata oluştu: ' + error.message);
+                window.location.href = '/cart';
+            }
+        };
+
+        processCheckout();
     }, []);
 
     return (

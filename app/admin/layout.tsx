@@ -10,26 +10,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        import('@/lib/mock-service').then(({ MockService }) => {
-            const user = MockService.getCurrentUser();
-            // For demo purposes, we'll allow anyone who logs in as admin if they have admin role, 
-            // OR for this prototype, just let it slide if we want easier testing.
-            // But let's strictly check for role 'admin' usually. 
-            // Since we can't easily set role in UI, let's auto-promote test user or check if valid user.
+        const checkAdmin = async () => {
+            const { supabase } = await import('@/lib/supabase');
+            const { data: { session } } = await supabase.auth.getSession();
 
-            if (!user) {
+            if (!session) {
                 window.location.href = '/giris-yap';
                 return;
             }
 
-            // Simulating Admin Access
-            if (user.email.includes('admin') || true) { // Allow all for demo simplicity
+            // Check if user is admin in profiles table
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profile?.role === 'admin') {
                 setIsAdmin(true);
             } else {
                 window.location.href = '/';
             }
             setLoading(false);
-        });
+        };
+
+        checkAdmin();
     }, []);
 
     if (loading) return <div className="min-h-screen flex items-center justify-center">Yükleniyor...</div>;
