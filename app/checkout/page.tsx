@@ -13,44 +13,46 @@ export default function CheckoutPage() {
     useEffect(() => {
         const processCheckout = async () => {
             try {
-                // 1. Get User
-                const { supabase } = await import('@/lib/supabase');
-                const { data: { session } } = await supabase.auth.getSession();
+                const { auth, db } = await import('@/lib/firebase');
+                const { collection, addDoc } = await import('firebase/firestore');
 
-                if (!session) {
+                // 1. Get User
+                const currentUser = auth.currentUser;
+
+                if (!currentUser) {
                     alert('Ödeme yapabilmek için giriş yapmalısınız.');
                     window.location.href = '/giris-yap';
                     return;
                 }
 
                 // 2. Get Cart
-                const { MockService } = await import('@/lib/mock-service');
-                const cart = MockService.getCart();
+                const cart = JSON.parse(localStorage.getItem('cart') || '[]');
 
                 if (cart.length === 0) {
                     window.location.href = '/cart';
                     return;
                 }
 
-                // 3. Create Bookings in Supabase
-                const bookings = cart.map((item: any) => ({
-                    product_id: item.id,
-                    renter_id: session.user.id,
-                    start_date: new Date().toISOString(), // Starting today
-                    end_date: new Date(Date.now() + item.duration * 24 * 60 * 60 * 1000).toISOString(),
-                    total_price: item.price * item.duration,
-                    status: 'approved' // Auto-approve for now since payment is mocked
-                }));
+                // 3. Create Bookings in Firestore
+                const bookingsRef = collection(db, "bookings");
 
-                const { error } = await supabase
-                    .from('bookings')
-                    .insert(bookings);
-
-                if (error) throw error;
+                for (const item of cart) {
+                    await addDoc(bookingsRef, {
+                        product_id: item.id,
+                        product_title: item.title, // Denormalize for easier display
+                        product_image: item.image,
+                        renter_id: currentUser.uid,
+                        start_date: item.startDate,
+                        end_date: item.end_date || item.endDate, // Handle both casing if needed
+                        total_price: item.price * item.duration,
+                        status: 'approved', // Auto-approve for now since payment is mocked
+                        created_at: new Date().toISOString()
+                    });
+                }
 
                 // 4. Success
                 setTimeout(() => {
-                    MockService.clearCart();
+                    localStorage.removeItem('cart');
                     setStep('success');
                 }, 2000);
 

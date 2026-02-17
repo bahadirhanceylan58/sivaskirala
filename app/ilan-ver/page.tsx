@@ -1,19 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { PhotoIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
 
 export default function AddItemPage() {
-    const [images, setImages] = useState<string[]>([]);
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const router = useRouter();
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { auth } = await import('@/lib/firebase');
+            const { onAuthStateChanged } = await import('firebase/auth');
+            onAuthStateChanged(auth, (user) => {
+                if (!user) {
+                    alert('İlan vermek için önce giriş yapmalısınız!');
+                    router.push('/giris-yap');
+                } else {
+                    setCurrentUser(user);
+                }
+            });
+        };
+        checkAuth();
+    }, [router]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Simulation: Just showing standard placeholders for now
         if (e.target.files && e.target.files.length > 0) {
-            const newImages = Array.from(e.target.files).map(() => URL.createObjectURL(e.target.files![0]));
-            setImages([...images, ...newImages]);
+            const files = Array.from(e.target.files);
+            const newPreviews = files.map(file => URL.createObjectURL(file));
+            setImageFiles([...imageFiles, ...files]);
+            setImagePreviews([...imagePreviews, ...newPreviews]);
         }
     };
 
@@ -27,29 +48,38 @@ export default function AddItemPage() {
         setLoading(true);
 
         try {
-            const { supabase } = await import('@/lib/supabase');
-            const { data: { session } } = await supabase.auth.getSession();
+            if (!currentUser) return;
 
-            if (!session) {
-                alert('İlan vermek için önce giriş yapmalısınız!');
-                window.location.href = '/giris-yap';
-                return;
+            const { db, storage } = await import('@/lib/firebase');
+            const { collection, addDoc } = await import('firebase/firestore');
+            const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+
+            // 1. Upload Images
+            let imageUrl = 'https://via.placeholder.com/400'; // Default placeholder
+            if (imageFiles.length > 0) {
+                const file = imageFiles[0]; // For now just take the first one as main image
+                const storageRef = ref(storage, `products/${currentUser.uid}/${Date.now()}_${file.name}`);
+                const snapshot = await uploadBytes(storageRef, file);
+                imageUrl = await getDownloadURL(snapshot.ref);
             }
 
-            const { MockService } = await import('@/lib/mock-service');
-
-            await MockService.addProduct({
+            // 2. Save to Firestore
+            await addDoc(collection(db, "products"), {
                 title,
-                category,
+                description,
                 price: parseFloat(price),
-                image: images[0] || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=1000', // Default image if none
-                ownerId: session.user.id,
-                description: description,
-                location: 'Sivas Merkez', // Default location
-            } as any); // Cast to any to avoid strict type checks for now, or match Product interface exactly
+                category,
+                image: imageUrl,
+                images: [imageUrl], // Future proofing for multiple images
+                owner_id: currentUser.uid,
+                owner_email: currentUser.email,
+                status: 'pending', // Requires admin approval
+                location: 'Sivas Merkez',
+                created_at: new Date().toISOString()
+            });
 
-            alert('İlanınız başarıyla yayınlandı!');
-            window.location.href = '/';
+            alert('İlanınız başarıyla gönderildi ve onay için beklemeye alındı!');
+            router.push('/hesabim');
 
         } catch (error: any) {
             console.error(error);
@@ -71,7 +101,7 @@ export default function AddItemPage() {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Ürün Fotoğrafları</label>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {images.map((img, idx) => (
+                                {imagePreviews.map((img, idx) => (
                                     <div key={idx} className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
                                         <img src={img} alt="preview" className="w-full h-full object-cover" />
                                     </div>

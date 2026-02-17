@@ -15,6 +15,19 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Sivas Kirala - Kiralık Ürünler Platformu",
   description: "Sivas'ın en büyük kiralama platformu. Elektronik, giyim, kamp malzemeleri ve daha fazlasını kiralayın.",
+  openGraph: {
+    title: "Sivas Kirala - Kiralık Ürünler Platformu",
+    description: "Sivas'ın en büyük kiralama platformu. Elektronik, giyim, kamp malzemeleri ve daha fazlasını kiralayın.",
+    url: "https://sivas-kirala.web.app",
+    siteName: "Sivas Kirala",
+    locale: "tr_TR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sivas Kirala - Kiralık Ürünler Platformu",
+    description: "Sivas'ın en büyük kiralama platformu.",
+  },
 };
 
 export default function RootLayout({

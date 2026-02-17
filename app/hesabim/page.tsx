@@ -3,52 +3,91 @@
 import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { User, Product, MockService } from '@/lib/mock-service';
+// Remove MockService
+// import { User, Product, MockService } from '@/lib/mock-service';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
-    const [user, setUser] = useState<User | null>(null);
-    const [myProducts, setMyProducts] = useState<Product[]>([]);
+    const [user, setUser] = useState<any>(null);
+    const [myProducts, setMyProducts] = useState<any[]>([]);
     const [myRentals, setMyRentals] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'listings' | 'rentals'>('listings');
+    const router = useRouter();
 
     useEffect(() => {
         const checkUser = async () => {
-            const { supabase } = await import('@/lib/supabase');
-            const { data: { session } } = await supabase.auth.getSession();
+            const { auth, db } = await import('@/lib/firebase');
+            const { onAuthStateChanged, signOut } = await import('firebase/auth');
+            const { doc, getDoc, collection, query, where, getDocs } = await import('firebase/firestore');
 
-            if (!session) {
-                window.location.href = '/giris-yap';
-                return;
-            }
+            const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+                if (!currentUser) {
+                    router.push('/giris-yap');
+                    return;
+                }
 
-            // Get profile details
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
+                // Get extended profile
+                let userData = {
+                    id: currentUser.uid,
+                    email: currentUser.email,
+                    fullName: currentUser.displayName || 'Kullanıcı',
+                    role: 'user'
+                };
 
-            setUser({
-                id: session.user.id,
-                email: session.user.email!,
-                fullName: profile?.full_name || session.user.user_metadata?.full_name || 'Kullanıcı',
-                role: profile?.role || 'user'
-            } as any);
+                try {
+                    const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
+                        userData = { ...userData, ...data, fullName: data.full_name || userData.fullName };
+                    }
+                } catch (e) {
+                    console.error("Error fetching user profile", e);
+                }
 
-            // Load data
-            const { MockService } = await import('@/lib/mock-service');
-            const listings = await MockService.getUserListings(session.user.id);
-            const rentals = await MockService.getUserRentals(session.user.id);
+                setUser(userData);
 
-            setMyProducts(listings);
-            setMyRentals(rentals);
+                // Fetch Listings (Products owned by user)
+                try {
+                    const q = query(collection(db, "products"), where("owner_id", "==", currentUser.uid));
+                    const querySnapshot = await getDocs(q);
+                    const listings: any[] = [];
+                    querySnapshot.forEach((doc) => {
+                        listings.push({ id: doc.id, ...doc.data() });
+                    });
+                    setMyProducts(listings);
+                } catch (e) {
+                    console.error("Error fetching listings", e);
+                }
+
+                // Fetch Rentals (Bookings made by user)
+                try {
+                    const qRentals = query(collection(db, "bookings"), where("renter_id", "==", currentUser.uid));
+                    const rentalsSnapshot = await getDocs(qRentals);
+                    const rentals: any[] = [];
+                    rentalsSnapshot.forEach((doc) => {
+                        rentals.push({ id: doc.id, ...doc.data() });
+                    });
+                    setMyRentals(rentals);
+                } catch (e) {
+                    console.error("Error fetching rentals", e);
+                }
+            });
+
+            return () => unsubscribe();
         };
 
         checkUser();
-    }, []);
+    }, [router]);
 
-    if (!user) return null;
+    const handleLogout = async () => {
+        const { auth } = await import('@/lib/firebase');
+        const { signOut } = await import('firebase/auth');
+        await signOut(auth);
+        window.location.href = '/';
+    };
+
+    if (!user) return <div className="p-8 text-center text-gray-500">Yükleniyor...</div>;
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
@@ -64,7 +103,7 @@ export default function DashboardPage() {
                 {/* Profile Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8 flex items-center space-x-6">
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-primary text-3xl font-bold">
-                        {user.fullName.charAt(0)}
+                        {user.fullName ? user.fullName.charAt(0) : 'U'}
                     </div>
                     <div>
                         <h2 className="text-2xl font-bold text-gray-800">{user.fullName}</h2>
@@ -76,11 +115,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                     <button
-                        onClick={async () => {
-                            const { supabase } = await import('@/lib/supabase');
-                            await supabase.auth.signOut();
-                            window.location.href = '/';
-                        }}
+                        onClick={handleLogout}
                         className="ml-auto flex items-center gap-2 text-red-500 hover:text-red-700 font-medium transition-colors px-4 py-2 hover:bg-red-50 rounded-lg"
                     >
                         <span>Çıkış Yap</span>
@@ -128,7 +163,9 @@ export default function DashboardPage() {
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-gray-400">Görsel Yok</div>
                                         )}
-                                        <span className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-bold text-gray-700">Aktif</span>
+                                        <span className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-bold ${product.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                            {product.status === 'active' ? 'Yayında' : product.status}
+                                        </span>
                                     </div>
                                     <div className="p-4 relative z-10 pointer-events-none">
                                         <h3 className="font-bold text-lg mb-1 text-gray-900 group-hover:text-primary transition-colors">{product.title}</h3>
@@ -159,19 +196,28 @@ export default function DashboardPage() {
                             {myRentals.map((rental) => (
                                 <div key={rental.id} className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 hover:shadow-md transition-shadow">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-xl">📄</div>
+                                        <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+                                            {rental.product_image ? (
+                                                <img src={rental.product_image} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-2xl">📄</span>
+                                            )}
+                                        </div>
                                         <div>
-                                            <h3 className="font-bold text-gray-900">{rental.title}</h3>
-                                            <p className="text-sm text-gray-500">Tarih: {rental.date}</p>
+                                            <h3 className="font-bold text-gray-900">{rental.product_title}</h3>
+                                            <p className="text-sm text-gray-500">
+                                                {new Date(rental.start_date || rental.startDate).toLocaleDateString('tr-TR')} -
+                                                {new Date(rental.end_date || rental.endDate).toLocaleDateString('tr-TR')}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-8">
                                         <div className="text-right">
-                                            <p className="font-bold text-gray-900">{rental.price} ₺</p>
+                                            <p className="font-bold text-gray-900 text-lg">{rental.total_price} ₺</p>
                                         </div>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${rental.status === 'Aktif' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${rental.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                                             }`}>
-                                            {rental.status}
+                                            {rental.status === 'approved' ? 'Onaylandı' : rental.status}
                                         </span>
                                     </div>
                                 </div>

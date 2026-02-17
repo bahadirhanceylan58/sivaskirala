@@ -10,34 +10,40 @@ const Navbar = () => {
     const [user, setUser] = useState<any>(null);
 
     // Check auth on mount
+    // Check auth on mount
     useEffect(() => {
-        // Get initial session
-        import('@/lib/supabase').then(({ supabase }) => {
-            supabase.auth.getSession().then(({ data: { session } }) => {
-                if (session?.user) {
-                    // Get user details
-                    setUser({
-                        id: session.user.id,
-                        email: session.user.email,
-                        fullName: session.user.user_metadata?.full_name || 'Kullanıcı'
-                    });
-                }
-            });
+        // Import firebase auth dynamically to avoid server-side issues
+        import('@/lib/firebase').then(({ auth }) => {
+            const { onAuthStateChanged } = require('firebase/auth');
+            const { doc, getDoc, getFirestore } = require('firebase/firestore');
 
-            // Listen for changes
-            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-                if (session?.user) {
+            const unsubscribe = onAuthStateChanged(auth, async (currentUser: any) => {
+                if (currentUser) {
+                    let fullName = currentUser.displayName || 'Kullanıcı';
+
+                    // Try to get extended profile from Firestore
+                    try {
+                        const db = getFirestore();
+                        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            if (userData.full_name) fullName = userData.full_name;
+                        }
+                    } catch (error) {
+                        console.error("Error fetching user profile:", error);
+                    }
+
                     setUser({
-                        id: session.user.id,
-                        email: session.user.email,
-                        fullName: session.user.user_metadata?.full_name || 'Kullanıcı'
+                        id: currentUser.uid,
+                        email: currentUser.email,
+                        fullName: fullName
                     });
                 } else {
                     setUser(null);
                 }
             });
 
-            return () => subscription.unsubscribe();
+            return () => unsubscribe();
         });
     }, []);
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { supabase } from '@/lib/supabase';
+
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('');
@@ -19,43 +19,43 @@ export default function RegisterPage() {
         setError(null);
 
         try {
-            // Attempt Supabase Registration
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        full_name: fullName,
-                    },
-                },
+            const { auth } = await import('@/lib/firebase');
+            const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
+            const { getFirestore, doc, setDoc } = await import('firebase/firestore');
+
+            // 1. Create User in Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // 2. Update Auth Profile (Display Name)
+            await updateProfile(user, {
+                displayName: fullName
             });
 
-            if (error) throw error;
+            // 3. Create User Document in Firestore
+            const db = getFirestore();
+            await setDoc(doc(db, "users", user.uid), {
+                email: email,
+                full_name: fullName,
+                role: 'user',
+                created_at: new Date().toISOString()
+            });
 
-            if (data.user) {
-                // Determine if email confirmation is required (Supabase default)
-                alert('Kayıt başarılı! Lütfen e-postanızı kontrol edip hesabınızı doğrulayın.');
-                window.location.href = '/giris-yap';
-            } else {
-                // Fallback logic if needed
-            }
+            alert('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz.');
+            window.location.href = '/giris-yap';
 
         } catch (err: any) {
             console.error('Register error:', err);
-            // Fallback to Mock if Supabase is not configured
-            if (err.message.includes('Supabase URL')) {
-                try {
-                    const { MockService } = await import('@/lib/mock-service');
-                    await MockService.register(email, fullName, password);
-                    alert('Kayıt başarılı! (Demo Modu)');
-                    window.location.href = '/';
-                    return;
-                } catch (mockErr: any) {
-                    setError(mockErr.message);
-                }
-            } else {
-                setError(err.message);
+            // Firebase error codes
+            let message = err.message;
+            if (err.code === 'auth/email-already-in-use') {
+                message = 'Bu e-posta adresi zaten kullanımda.';
+            } else if (err.code === 'auth/weak-password') {
+                message = 'Şifre çok zayıf (en az 6 karakter).';
+            } else if (err.code === 'auth/invalid-email') {
+                message = 'Geçersiz e-posta adresi.';
             }
+            setError(message);
         } finally {
             setLoading(false);
         }

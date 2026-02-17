@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+
 import Link from 'next/link';
 
 export default function AdminDashboard() {
@@ -16,35 +16,42 @@ export default function AdminDashboard() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                // Users count
-                const { count: userCount } = await supabase
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true });
+                const { db } = await import('@/lib/firebase');
+                const { collection, getCountFromServer, query, where, getDocs } = await import('firebase/firestore');
 
-                // Product counts
-                const { count: activeCount } = await supabase
-                    .from('products')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('status', 'active');
+                // 1. Total Users
+                const usersColl = collection(db, "users");
+                const usersSnapshot = await getCountFromServer(usersColl);
+                const totalUsers = usersSnapshot.data().count;
 
-                const { count: pendingCount } = await supabase
-                    .from('products')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('status', 'pending');
+                // 2. Product Counts
+                const productsColl = collection(db, "products");
 
-                // Bookings revenue (sum total_price)
-                const { data: bookings } = await supabase
-                    .from('bookings')
-                    .select('total_price')
-                    .eq('status', 'approved'); // Assuming we have 'approved' status
+                const activeQuery = query(productsColl, where("status", "==", "active"));
+                const activeSnapshot = await getCountFromServer(activeQuery);
+                const activeListings = activeSnapshot.data().count;
 
-                const revenue = bookings?.reduce((sum, booking) => sum + booking.total_price, 0) || 0;
+                const pendingQuery = query(productsColl, where("status", "==", "pending"));
+                const pendingSnapshot = await getCountFromServer(pendingQuery);
+                const pendingListings = pendingSnapshot.data().count;
+
+                // 3. Total Revenue
+                // Firestore doesn't support aggregation queries for sum directly in client SDK easily without cloud functions or reading all docs.
+                // For now, we'll read approved bookings.
+                const bookingsColl = collection(db, "bookings");
+                const revenueQuery = query(bookingsColl, where("status", "==", "approved"));
+                const revenueSnapshot = await getDocs(revenueQuery);
+
+                let totalRevenue = 0;
+                revenueSnapshot.forEach(doc => {
+                    totalRevenue += (doc.data().total_price || 0);
+                });
 
                 setStats({
-                    totalUsers: userCount || 0,
-                    activeListings: activeCount || 0,
-                    pendingListings: pendingCount || 0,
-                    totalRevenue: revenue
+                    totalUsers,
+                    activeListings,
+                    pendingListings,
+                    totalRevenue
                 });
             } catch (error) {
                 console.error('Error fetching admin stats:', error);
@@ -56,7 +63,7 @@ export default function AdminDashboard() {
         fetchStats();
     }, []);
 
-    if (loading) return <div className="p-8 text-center">Yükleniyor...</div>;
+    if (loading) return <div className="p-8 text-center text-gray-500">Yükleniyor...</div>;
 
     return (
         <div>
@@ -81,7 +88,7 @@ export default function AdminDashboard() {
                         {stats.pendingListings}
                     </p>
                     {stats.pendingListings > 0 && (
-                        <Link href="/admin/products" className="text-xs text-orange-600 hover:underline block mt-1">
+                        <Link href="/admin/ilanlar" className="text-xs text-orange-600 hover:underline block mt-1">
                             İncele →
                         </Link>
                     )}

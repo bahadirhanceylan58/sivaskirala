@@ -5,7 +5,21 @@ import Footer from "@/components/Footer";
 import { StarIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { useEffect, useState, use } from "react";
-import { MockService, Product } from "@/lib/mock-service";
+// Remove MockService import
+// import { MockService, Product } from "@/lib/mock-service";
+
+interface Product {
+    id: string;
+    title: string;
+    description: string;
+    price: number;
+    category: string;
+    image: string;
+    images?: string[];
+    features?: string[];
+    sizes?: string[];
+    owner_id: string;
+}
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
@@ -13,20 +27,74 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const [duration, setDuration] = useState(1);
+    // Date state
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [totalPrice, setTotalPrice] = useState(0);
 
     useEffect(() => {
-        MockService.getProduct(id).then((data) => {
-            setProduct(data);
-            setLoading(false);
-        });
+        async function fetchProduct() {
+            try {
+                const { doc, getDoc, getFirestore } = await import('firebase/firestore');
+                const { app } = await import('@/lib/firebase');
+                const db = getFirestore(app);
+
+                const docRef = doc(db, "products", id);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    setProduct({ id: docSnap.id, ...docSnap.data() } as Product);
+                    setTotalPrice(docSnap.data().price); // Default 1 day price
+                } else {
+                    console.log("No such document!");
+                }
+            } catch (error) {
+                console.error("Error fetching product:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchProduct();
     }, [id]);
 
-    const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value);
-        if (value >= 1 && value <= 30) {
-            setDuration(value);
+    // Calculate total price when dates change
+    useEffect(() => {
+        if (product && startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const diffTime = Math.abs(end.getTime() - start.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            // Ensure at least 1 day
+            const days = diffDays > 0 ? diffDays : 1;
+            setTotalPrice(product.price * days);
+        } else if (product) {
+            setTotalPrice(product.price);
         }
+    }, [startDate, endDate, product]);
+
+    const handleAddToCart = () => {
+        if (!startDate || !endDate) {
+            alert('Lütfen kiralama tarih aralığını seçiniz.');
+            return;
+        }
+
+        const cartItem = {
+            id: product!.id,
+            title: product!.title,
+            price: product!.price,
+            image: product!.image,
+            duration: Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))),
+            startDate,
+            endDate
+        };
+
+        // Save to local storage for now (simple cart)
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        cart.push(cartItem);
+        localStorage.setItem('cart', JSON.stringify(cart));
+
+        window.location.href = '/cart';
     };
 
     if (loading) {
@@ -53,8 +121,6 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             </div>
         );
     }
-
-    const totalPrice = product.price * duration;
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
@@ -117,37 +183,30 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                             )}
 
                             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8">
-                                {/* Size Selector */}
-                                {product.sizes && (
-                                    <div className="mb-6">
-                                        <span className="text-gray-900 font-medium block mb-2">Beden Seçimi</span>
-                                        <div className="flex gap-2">
-                                            {product.sizes.map((size) => (
-                                                <button
-                                                    key={size}
-                                                    // Note: We need state for this. For now, visual only as specifically requested to 'add' it.
-                                                    // In a real app, we'd bind this to a state.
-                                                    className="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center hover:border-primary hover:text-primary focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white text-gray-700 font-medium"
-                                                >
-                                                    {size}
-                                                </button>
-                                            ))}
+                                {/* Date Selection */}
+                                <div className="mb-6">
+                                    <span className="text-gray-900 font-medium block mb-3">Kiralama Tarihleri</span>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs text-gray-500 mb-1 block">Başlangıç</label>
+                                            <input
+                                                type="date"
+                                                className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                                                min={new Date().toISOString().split('T')[0]}
+                                                value={startDate}
+                                                onChange={(e) => setStartDate(e.target.value)}
+                                            />
                                         </div>
-                                    </div>
-                                )}
-
-                                <div className="flex justify-between items-center mb-4">
-                                    <span className="text-gray-600 font-medium">Kiralama Süresi (Gün)</span>
-                                    <div className="flex items-center space-x-2">
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="30"
-                                            value={duration}
-                                            onChange={handleDurationChange}
-                                            className="w-16 text-center border border-gray-300 rounded-lg py-1 px-2 focus:ring-primary focus:border-primary"
-                                        />
-                                        <span className="text-gray-500 text-sm">Gün</span>
+                                        <div>
+                                            <label className="text-xs text-gray-500 mb-1 block">Bitiş</label>
+                                            <input
+                                                type="date"
+                                                className="w-full border border-gray-300 rounded-lg p-2 text-sm"
+                                                min={startDate || new Date().toISOString().split('T')[0]}
+                                                value={endDate}
+                                                onChange={(e) => setEndDate(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -167,13 +226,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 </div>
 
                                 <button
-                                    onClick={() => {
-                                        const { MockService } = require('@/lib/mock-service');
-                                        MockService.addToCart(product, duration);
-                                        window.location.href = '/cart';
-                                    }}
+                                    onClick={handleAddToCart}
                                     className="w-full bg-primary text-white py-3 rounded-xl font-bold text-lg hover:bg-green-700 transition-transform hover:scale-[1.02] shadow-lg shadow-green-200">
-                                    Sepete Ekle & Kirala ({duration} Gün)
+                                    Kiralamayı Başlat
                                 </button>
 
                                 {/* Social Share Buttons */}
@@ -206,7 +261,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 </div>
                                 <div>
                                     <p className="font-bold text-gray-900">Satıcı</p>
-                                    <p className="text-xs text-gray-500">Üyelik Tarihi: 2024</p>
+                                    <p className="text-xs text-gray-500">Mağaza Puanı: 9.8</p>
                                 </div>
                                 <div className="ml-auto">
                                     <span className="text-green-600 text-sm font-medium">Onaylı Hesap ✓</span>

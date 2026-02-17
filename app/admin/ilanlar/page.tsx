@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 
 interface Product {
     id: string;
     title: string;
-    price_per_day: number;
+    price: number; // Changed from price_per_day to match Product interface
     category: string;
     status: string;
-    images: string[];
+    image: string; // Changed from images array to single image string as per Add Item
     created_at: string;
-    owner: {
+    owner_id: string;
+    owner?: {
         full_name: string;
         email: string;
     } | null;
@@ -24,20 +24,47 @@ export default function AdminProductsPage() {
 
     const fetchProducts = async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('products')
-            .select(`
-                *,
-                owner:profiles(full_name, email)
-            `)
-            .order('created_at', { ascending: false });
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { collection, getDocs, orderBy, query, doc, getDoc } = await import('firebase/firestore');
 
-        if (error) {
+            const q = query(collection(db, "products"), orderBy('created_at', 'desc'));
+            const querySnapshot = await getDocs(q);
+
+            const productsData: Product[] = [];
+
+            // Fetch products and then their owners
+            // Note: In a real app with many products, this N+1 query pattern is bad. 
+            // Better to denormalize owner info into product doc or use an index.
+            // For this scale, it's fine.
+            for (const docSnapshot of querySnapshot.docs) {
+                const pData = docSnapshot.data();
+                const product = { id: docSnapshot.id, ...pData } as Product;
+
+                if (pData.owner_id) {
+                    try {
+                        const userDoc = await getDoc(doc(db, "users", pData.owner_id));
+                        if (userDoc.exists()) {
+                            const userData = userDoc.data();
+                            product.owner = {
+                                full_name: userData.full_name || 'Bilinmiyor',
+                                email: userData.email || '-'
+                            };
+                        }
+                    } catch (e) {
+                        console.error("Error fetching owner", e);
+                    }
+                }
+                productsData.push(product);
+            }
+
+            setProducts(productsData);
+
+        } catch (error) {
             console.error('Error fetching products:', error);
-        } else {
-            setProducts(data || []);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
@@ -47,36 +74,37 @@ export default function AdminProductsPage() {
     const handleApprove = async (id: string) => {
         if (!confirm('Bu ilanı onaylamak istiyor musunuz?')) return;
 
-        const { error } = await supabase
-            .from('products')
-            .update({ status: 'active' })
-            .eq('id', id);
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { doc, updateDoc } = await import('firebase/firestore');
 
-        if (error) {
-            alert('Hata oluştu: ' + error.message);
-        } else {
+            const productRef = doc(db, "products", id);
+            await updateDoc(productRef, { status: 'active' });
+
             alert('İlan onaylandı!');
             fetchProducts();
+        } catch (error: any) {
+            alert('Hata oluştu: ' + error.message);
         }
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Bu ilanı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return;
 
-        const { error } = await supabase
-            .from('products')
-            .delete()
-            .eq('id', id);
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { doc, deleteDoc } = await import('firebase/firestore');
 
-        if (error) {
-            alert('Hata oluştu: ' + error.message);
-        } else {
+            await deleteDoc(doc(db, "products", id));
+
             alert('İlan silindi!');
             fetchProducts();
+        } catch (error: any) {
+            alert('Hata oluştu: ' + error.message);
         }
     };
 
-    if (loading) return <div className="p-8 text-center">Yükleniyor...</div>;
+    if (loading) return <div className="p-8 text-center text-gray-500">Yükleniyor...</div>;
 
     return (
         <div>
@@ -103,11 +131,10 @@ export default function AdminProductsPage() {
                                 <td className="px-6 py-4">
                                     <div className="flex items-center space-x-3">
                                         <div className="w-10 h-10 rounded-lg bg-gray-100 relative overflow-hidden flex-shrink-0">
-                                            {product.images && product.images[0] ? (
-                                                <Image
-                                                    src={product.images[0]}
-                                                    fill
-                                                    className="object-cover"
+                                            {product.image ? (
+                                                <img
+                                                    src={product.image}
+                                                    className="w-full h-full object-cover"
                                                     alt={product.title}
                                                 />
                                             ) : (
@@ -129,11 +156,11 @@ export default function AdminProductsPage() {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-gray-900 font-medium text-sm">
-                                    {product.price_per_day} ₺
+                                    {product.price} ₺
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${product.status === 'active' ? 'bg-green-100 text-green-700' :
-                                            product.status === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+                                        product.status === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
                                         }`}>
                                         {product.status === 'active' ? 'Yayında' :
                                             product.status === 'pending' ? 'Onay Bekliyor' : product.status}

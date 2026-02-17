@@ -1,16 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 
 interface Profile {
     id: string;
     email: string;
     full_name: string;
-    avatar_url: string;
+    avatar_url?: string;
     role: string;
-    is_blocked: boolean;
+    is_blocked?: boolean;
     created_at: string;
 }
 
@@ -20,17 +19,24 @@ export default function AdminUsersPage() {
 
     const fetchUsers = async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { collection, getDocs, orderBy, query } = await import('firebase/firestore');
 
-        if (error) {
+            const q = query(collection(db, "users"), orderBy('created_at', 'desc'));
+            const querySnapshot = await getDocs(q);
+
+            const usersData: Profile[] = [];
+            querySnapshot.forEach((doc) => {
+                usersData.push({ id: doc.id, ...doc.data() } as Profile);
+            });
+
+            setUsers(usersData);
+        } catch (error) {
             console.error('Error fetching users:', error);
-        } else {
-            setUsers(data || []);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
@@ -41,35 +47,37 @@ export default function AdminUsersPage() {
         const action = currentStatus ? 'engelini kaldırmak' : 'engellemek';
         if (!confirm(`Bu kullanıcıyı ${action} istiyor musunuz?`)) return;
 
-        const { error } = await supabase
-            .from('profiles')
-            .update({ is_blocked: !currentStatus })
-            .eq('id', id);
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { doc, updateDoc } = await import('firebase/firestore');
 
-        if (error) {
-            alert('Hata oluştu: ' + error.message);
-        } else {
+            const userRef = doc(db, "users", id);
+            await updateDoc(userRef, { is_blocked: !currentStatus });
+
             fetchUsers();
+        } catch (error: any) {
+            alert('Hata oluştu: ' + error.message);
         }
     };
 
     const makeAdmin = async (id: string) => {
         if (!confirm('Bu kullanıcıyı yönetici yapmak istiyor musunuz?')) return;
 
-        const { error } = await supabase
-            .from('profiles')
-            .update({ role: 'admin' })
-            .eq('id', id);
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { doc, updateDoc } = await import('firebase/firestore');
 
-        if (error) {
-            alert('Hata oluştu: ' + error.message);
-        } else {
+            const userRef = doc(db, "users", id);
+            await updateDoc(userRef, { role: 'admin' });
+
             alert('Kullanıcı yönetici yapıldı!');
             fetchUsers();
+        } catch (error: any) {
+            alert('Hata oluştu: ' + error.message);
         }
     };
 
-    if (loading) return <div className="p-8 text-center">Yükleniyor...</div>;
+    if (loading) return <div className="p-8 text-center text-gray-500">Yükleniyor...</div>;
 
     return (
         <div>
@@ -98,7 +106,7 @@ export default function AdminUsersPage() {
                                             {user.avatar_url ? (
                                                 <Image src={user.avatar_url} fill className="object-cover" alt={user.full_name} />
                                             ) : (
-                                                user.full_name?.charAt(0).toUpperCase()
+                                                (user.full_name || 'U').charAt(0).toUpperCase()
                                             )}
                                         </div>
                                         <div>
@@ -135,8 +143,8 @@ export default function AdminUsersPage() {
                                             <button
                                                 onClick={() => toggleBlock(user.id, user.is_blocked || false)}
                                                 className={`font-medium text-xs px-2 py-1 rounded transition-colors ${user.is_blocked
-                                                        ? 'text-green-600 bg-green-50 hover:bg-green-100'
-                                                        : 'text-red-500 bg-red-50 hover:bg-red-100'
+                                                    ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                                                    : 'text-red-500 bg-red-50 hover:bg-red-100'
                                                     }`}
                                             >
                                                 {user.is_blocked ? 'Engeli Kaldır' : 'Engelle'}
