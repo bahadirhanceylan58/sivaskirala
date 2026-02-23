@@ -4,8 +4,17 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { MockService, Product } from "@/lib/mock-service";
+// import { MockService, Product } from "@/lib/mock-service";
 import { TrashIcon } from "@heroicons/react/24/outline";
+
+interface Product {
+    id: string;
+    title: string;
+    price: number;
+    image: string;
+    category: string;
+    description?: string;
+}
 
 interface CartItem extends Product {
     duration: number;
@@ -17,13 +26,29 @@ export default function CartPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setCart(MockService.getCart());
-        setLoading(false);
+        const loadCart = () => {
+            if (typeof window !== 'undefined') {
+                const cartData = JSON.parse(localStorage.getItem('sivas_cart') || '[]');
+                setCart(cartData);
+                setLoading(false); // Set loading to false after cart is loaded
+            }
+        };
+
+        loadCart();
+
+        // Listen for storage events
+        window.addEventListener('storage', loadCart);
+        return () => window.removeEventListener('storage', loadCart);
     }, []);
 
     const removeFromCart = (cartId: string) => {
-        MockService.removeFromCart(cartId);
-        setCart(MockService.getCart());
+        if (typeof window !== 'undefined') {
+            const currentCart = JSON.parse(localStorage.getItem('sivas_cart') || '[]');
+            const newCart = currentCart.filter((item: any) => item.cartId !== cartId);
+            localStorage.setItem('sivas_cart', JSON.stringify(newCart));
+            window.dispatchEvent(new Event('storage'));
+            setCart(newCart);
+        }
     };
 
     const calculateTotal = () => {

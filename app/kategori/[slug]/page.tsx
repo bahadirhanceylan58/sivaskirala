@@ -4,7 +4,16 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 import { useEffect, useState, use } from "react";
-import { MockService, Product } from "@/lib/mock-service";
+// import { MockService, Product } from "@/lib/mock-service";
+
+interface Product {
+    id: string;
+    title: string;
+    price: number;
+    image: string;
+    category: string;
+    description?: string;
+}
 
 export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = use(params);
@@ -14,17 +23,39 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
     const categoryName = slug.charAt(0).toUpperCase() + slug.slice(1);
 
     useEffect(() => {
-        setLoading(true);
-        MockService.getProducts().then((allProducts) => {
-            // Simple keyword matching for demo purposes
-            // In a real app, this would be a DB query
-            const filtered = allProducts.filter(p =>
-                p.category.toLowerCase().includes(slug.toLowerCase()) ||
-                slug.toLowerCase().includes(p.category.toLowerCase().split(' ')[0])
-            );
-            setProducts(filtered);
-            setLoading(false);
-        });
+        const fetchCategoryProducts = async () => {
+            setLoading(true);
+            try {
+                const { db } = await import('@/lib/firebase');
+                const { collection, getDocs, query, where } = await import('firebase/firestore');
+
+                let categoryFilter = slug === 'giyim' ? 'Abiye & Giyim' :
+                    slug === 'ses' ? 'Ses & Görüntü' :
+                        slug === 'kamp' ? 'Kamp & Outdoor' :
+                            slug === 'kamera' ? 'Fotoğraf & Kamera' :
+                                slug.charAt(0).toUpperCase() + slug.slice(1);
+
+                // Simple mapping fix for demo purposes, strictly speaking we should match exactly what's in DB
+                if (slug === 'elektronik') categoryFilter = 'Elektronik';
+                if (slug === 'organizasyon') categoryFilter = 'Organizasyon';
+
+                const q = query(collection(db, "products"), where("category", "==", categoryFilter));
+                const querySnapshot = await getDocs(q);
+
+                const items: Product[] = [];
+                querySnapshot.forEach((doc) => {
+                    items.push({ id: doc.id, ...doc.data() } as Product);
+                });
+
+                setProducts(items);
+            } catch (error) {
+                console.error("Error fetching category products:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCategoryProducts();
     }, [slug]);
 
     return (

@@ -6,12 +6,22 @@ import Footer from '@/components/Footer';
 import { PhotoIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 
+import dynamic from 'next/dynamic';
+
+const LocationPicker = dynamic(() => import('@/components/Map/LocationPicker'), {
+    ssr: false,
+    loading: () => <div className="h-full w-full bg-gray-100 flex items-center justify-center text-gray-400">Harita yükleniyor...</div>
+});
+
 export default function AddItemPage() {
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [currentUser, setCurrentUser] = useState<any>(null);
     const router = useRouter();
+
+    // Default location: Sivas Center
+    const [location, setLocation] = useState<{ lat: number, lng: number }>({ lat: 39.7505, lng: 37.0150 });
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -71,10 +81,13 @@ export default function AddItemPage() {
                 category,
                 image: imageUrl,
                 images: [imageUrl], // Future proofing for multiple images
-                owner_id: currentUser.uid,
                 owner_email: currentUser.email,
+                ownerId: currentUser.uid,
+
                 status: 'pending', // Requires admin approval
                 location: 'Sivas Merkez',
+                lat: location.lat,
+                lng: location.lng,
                 created_at: new Date().toISOString()
             });
 
@@ -173,6 +186,17 @@ export default function AddItemPage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Depozito (₺)</label>
                                 <input type="number" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary outline-none" placeholder="0.00" />
                             </div>
+                        </div>
+
+                        {/* Map Location Picker */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Konum Seçimi</label>
+                            <div className="h-64 rounded-xl overflow-hidden border border-gray-300">
+                                <LocationPicker onLocationSelect={(lat, lng) => setLocation({ lat, lng })} />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                                {location.lat ? `Seçilen Konum: ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'Lütfen harita üzerinden ürünün teslim edileceği konumu seçin.'}
+                            </p>
                         </div>
 
                         <div className="pt-6 border-t border-gray-100 flex justify-end">

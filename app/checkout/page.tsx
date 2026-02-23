@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { MockService } from "@/lib/mock-service";
+// import { MockService } from "@/lib/mock-service";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 
 export default function CheckoutPage() {
@@ -38,16 +38,31 @@ export default function CheckoutPage() {
 
                 for (const item of cart) {
                     await addDoc(bookingsRef, {
-                        product_id: item.id,
-                        product_title: item.title, // Denormalize for easier display
-                        product_image: item.image,
-                        renter_id: currentUser.uid,
-                        start_date: item.startDate,
-                        end_date: item.end_date || item.endDate, // Handle both casing if needed
-                        total_price: item.price * item.duration,
-                        status: 'approved', // Auto-approve for now since payment is mocked
-                        created_at: new Date().toISOString()
+                        productId: item.id,
+                        productTitle: item.title,
+                        productImage: item.image,
+                        renterId: currentUser.uid,
+                        renterEmail: currentUser.email,
+                        ownerId: item.ownerId || null,
+                        startDate: item.startDate,
+                        endDate: item.endDate,
+                        totalPrice: item.price * item.duration,
+                        status: 'pending',
+                        createdAt: new Date().toISOString()
                     });
+
+                    // Send Notification to Owner
+                    if (item.ownerId) {
+                        const notesRef = collection(db, "notifications");
+                        await addDoc(notesRef, {
+                            userId: item.ownerId,
+                            message: `"${item.title}" ilanınız için yeni bir kiralama talebi oluşturuldu.`,
+                            type: 'order',
+                            read: false,
+                            created_at: new Date().toISOString(),
+                            link: '/hesabim' // Link to profile where they can see rentals
+                        });
+                    }
                 }
 
                 // 4. Success

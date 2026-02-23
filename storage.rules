@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Allow read publicly
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+
+    // Products folder
+    match /products/{userId}/{fileName} {
+      // Allow upload only by the authenticated user associated with the path
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Avatars (if any)
+    match /avatars/{userId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // --- YARDIMCI FONKSİYONLAR ---
     function isSignedIn() {
       return request.auth != null;
     }
@@ -12,49 +12,59 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      // In a real app, you might check a custom claim or a field in the user document.
-      // For this demo, we'll check if the user doc has role == 'admin'.
-      // Note: This requires an extra read, which costs money/performance.
-      // A better way is Custom Claims via Firebase Admin SDK.
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // 1. E-posta token kontrolü (hızlı, Firestore okuma gerektirmez)
+      // 2. Firestore'da role == 'admin' kontrolü (döküman yoksa güvenli şekilde false döner)
+      return request.auth.token.email == 'bahadirhanceylan@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
-    // Users collection
+    // --- KURALLAR ---
+
+    // 1. KULLANICILAR (Users)
     match /users/{userId} {
-      // Anyone can read basic profile info (needed for product owner details)
-      allow read: if true;
-      
-      // Only the user themselves or an admin can write
+      allow read: if true; // Profil bilgilerini herkes görebilir (İlan sahibi adı vs. için)
       allow write: if isSignedIn() && (isOwner(userId) || isAdmin());
     }
 
-    // Products collection
+    // 2. ÜRÜNLER (Products)
     match /products/{productId} {
-      // Anyone can view products
       allow read: if true;
-      
-      // Only authenticated users can create
       allow create: if isSignedIn();
-      
-      // Only the owner or admin can update/delete
-      // Resource operations check the existing document (resource.data)
-      allow update, delete: if isSignedIn() && (resource.data.owner_id == request.auth.uid || isAdmin());
+      // DİKKAT: Burada 'ownerId' kullandık (JavaScript standardı)
+      allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
+
+      // Reviews subcollection
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow delete: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+        allow update: if isSignedIn() && isAdmin();
+      }
     }
 
-    // Bookings collection
+    // 3. KİRALAMALAR (Bookings)
     match /bookings/{bookingId} {
-      // Users can see their own bookings (as renter) or bookings for their products (as owner - complex query)
-      // and Admins can see all.
       allow read: if isSignedIn() && (
-        resource.data.renter_id == request.auth.uid || 
+        resource.data.renterId == request.auth.uid || 
+        resource.data.ownerId == request.auth.uid || // İlan sahibi de görebilmeli
         isAdmin()
       );
       
-      // Authenticated users can create bookings
       allow create: if isSignedIn();
       
-      // Admins can update status (approve etc.)
-      allow update: if isSignedIn() && isAdmin();
+      // Onaylama işlemini ilan sahibi veya admin yapabilir
+      allow update: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid || 
+        isAdmin()
+      );
+    }
+
+    // 4. BİLDİRİMLER (Notifications)
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
   }
 }

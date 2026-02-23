@@ -2,49 +2,75 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Fragment, useState, useEffect } from 'react';
-import { MagnifyingGlassIcon, ShoppingCartIcon, UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Fragment } from 'react';
+import { UserCircleIcon, ShoppingBagIcon, PlusCircleIcon, BellIcon, Bars3Icon, XMarkIcon, MagnifyingGlassIcon, UserIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import NotificationDropdown from './NotificationDropdown';
 
 const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [user, setUser] = useState<any>(null);
+    const [cartCount, setCartCount] = useState(0);
+
+    // Sync cart count
+    useEffect(() => {
+        const updateCount = () => {
+            try {
+                const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+                setCartCount(cart.length);
+            } catch { setCartCount(0); }
+        };
+        updateCount();
+        window.addEventListener('storage', updateCount);
+        return () => window.removeEventListener('storage', updateCount);
+    }, []);
 
     // Check auth on mount
     // Check auth on mount
     useEffect(() => {
-        // Import firebase auth dynamically to avoid server-side issues
-        import('@/lib/firebase').then(({ auth }) => {
-            const { onAuthStateChanged } = require('firebase/auth');
-            const { doc, getDoc, getFirestore } = require('firebase/firestore');
+        let unsubscribe: () => void;
 
-            const unsubscribe = onAuthStateChanged(auth, async (currentUser: any) => {
-                if (currentUser) {
-                    let fullName = currentUser.displayName || 'Kullanıcı';
+        const initAuth = async () => {
+            try {
+                // Import firebase dynamically
+                const { auth, db } = await import('@/lib/firebase');
+                const { onAuthStateChanged } = await import('firebase/auth');
+                const { doc, getDoc } = await import('firebase/firestore');
 
-                    // Try to get extended profile from Firestore
-                    try {
-                        const db = getFirestore();
-                        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-                        if (userDoc.exists()) {
-                            const userData = userDoc.data();
-                            if (userData.full_name) fullName = userData.full_name;
+                unsubscribe = onAuthStateChanged(auth, async (currentUser: any) => {
+                    if (currentUser) {
+                        let fullName = currentUser.displayName || 'Kullanıcı';
+
+                        // Try to get extended profile from Firestore
+                        try {
+                            const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                            if (userDoc.exists()) {
+                                const userData = userDoc.data();
+                                if (userData.full_name) fullName = userData.full_name;
+                            }
+                        } catch (error) {
+                            console.error("Error fetching user profile:", error);
                         }
-                    } catch (error) {
-                        console.error("Error fetching user profile:", error);
+
+                        setUser({
+                            id: currentUser.uid,
+                            email: currentUser.email,
+                            fullName: fullName
+                        });
+                    } else {
+                        setUser(null);
                     }
+                });
+            } catch (error) {
+                console.error("Firebase init error:", error);
+            }
+        };
 
-                    setUser({
-                        id: currentUser.uid,
-                        email: currentUser.email,
-                        fullName: fullName
-                    });
-                } else {
-                    setUser(null);
-                }
-            });
+        initAuth();
 
-            return () => unsubscribe();
-        });
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
     return (
@@ -68,9 +94,22 @@ const Navbar = () => {
                     <input
                         type="text"
                         placeholder="Ürün, kategori veya marka ara..."
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                window.location.href = `/arama?q=${(e.target as HTMLInputElement).value}`;
+                            }
+                        }}
                         className="w-full border border-gray-300 rounded-full py-2.5 pl-5 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors hover:border-primary"
                     />
-                    <button className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary text-white p-2 rounded-full hover:bg-red-700 transition-colors">
+                    <button
+                        onClick={() => {
+                            const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+                            if (input && input.value) {
+                                window.location.href = `/arama?q=${input.value}`;
+                            }
+                        }}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary text-white p-2 rounded-full hover:bg-green-700 transition-colors"
+                    >
                         <MagnifyingGlassIcon className="h-4 w-4" />
                     </button>
                 </div>
@@ -78,24 +117,36 @@ const Navbar = () => {
                 {/* Actions */}
                 <div className="flex items-center space-x-4">
                     {user ? (
-                        <Link href="/hesabim" className="hidden lg:flex items-center text-gray-700 hover:text-primary font-medium transition-colors">
-                            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-primary font-bold mr-2">
-                                {user.fullName.charAt(0)}
-                            </div>
-                            <span>Hesabım</span>
-                        </Link>
+                        <>
+                            <Link href="/ilan-ver" className="text-gray-600 hover:text-primary transition-colors flex flex-col items-center group">
+                                <PlusCircleIcon className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" />
+                                <span className="text-xs font-medium">İlan Ver</span>
+                            </Link>
+
+                            {/* Notification Dropdown */}
+                            <NotificationDropdown />
+
+                            <Link href="/hesabim" className="text-gray-600 hover:text-primary transition-colors flex flex-col items-center group">
+                                <UserCircleIcon className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" />
+                                <span className="text-xs font-medium">Hesabım</span>
+                            </Link>
+                        </>
                     ) : (
-                        <Link href="/giris-yap" className="hidden lg:flex items-center text-gray-700 hover:text-primary font-medium transition-colors">
-                            <UserIcon className="h-6 w-6 mr-1" />
-                            <span>Giriş Yap</span>
-                        </Link>
+                        <>
+                            <Link href="/ilan-ver" className="hidden lg:block bg-primary text-white px-5 py-2 rounded-full font-bold hover:bg-secondary transition-transform hover:scale-105 shadow-md shadow-green-100">
+                                İlan Ver
+                            </Link>
+                            <Link href="/giris-yap" className="hidden lg:flex items-center text-gray-700 hover:text-primary font-medium transition-colors">
+                                <UserIcon className="h-6 w-6 mr-1" />
+                                <span>Giriş Yap</span>
+                            </Link>
+                        </>
                     )}
-                    <Link href="/ilan-ver" className="hidden lg:block bg-primary text-white px-5 py-2 rounded-full font-bold hover:bg-secondary transition-transform hover:scale-105 shadow-md shadow-green-100">
-                        İlan Ver
-                    </Link>
                     <Link href="/cart" className="relative group">
                         <ShoppingCartIcon className="h-6 w-6" />
-                        <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">0</span>
+                        {cartCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center animate-scale-in">{cartCount}</span>
+                        )}
                     </Link>
 
                     {/* Mobile Menu Button */}
@@ -139,12 +190,12 @@ const Navbar = () => {
                             <MagnifyingGlassIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         </div>
                         <nav className="flex flex-col space-y-3 pt-2">
+                            <Link href="/kategori/organizasyon" className="text-gray-700 hover:text-primary font-medium">Organizasyon & Düğün</Link>
+                            <Link href="/kategori/ses-goruntu" className="text-gray-700 hover:text-primary font-medium">Ses & Görüntü</Link>
+                            <Link href="/kategori/abiye-giyim" className="text-gray-700 hover:text-primary font-medium">Abiye & Giyim</Link>
+                            <Link href="/kategori/kamera" className="text-gray-700 hover:text-primary font-medium">Fotoğraf & Kamera</Link>
+                            <Link href="/kategori/kamp" className="text-gray-700 hover:text-primary font-medium">Kamp & Outdoor</Link>
                             <Link href="/kategori/elektronik" className="text-gray-700 hover:text-primary font-medium">Elektronik</Link>
-                            <Link href="/kategori/giyim" className="text-gray-700 hover:text-primary font-medium">Giyim & Aksesuar</Link>
-                            <Link href="/kategori/anne-bebek" className="text-gray-700 hover:text-primary font-medium">Anne & Bebek</Link>
-                            <Link href="/kategori/spor-outdoor" className="text-gray-700 hover:text-primary font-medium">Spor & Outdoor</Link>
-                            <Link href="/kategori/hobi-oyun" className="text-gray-700 hover:text-primary font-medium">Hobi & Oyun</Link>
-                            <Link href="/kategori/ev-yasam" className="text-gray-700 hover:text-primary font-medium">Ev & Yaşam</Link>
                             <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col gap-3">
                                 {user ? (
                                     <Link href="/hesabim" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">

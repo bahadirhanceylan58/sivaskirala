@@ -5,6 +5,8 @@ import Footer from "@/components/Footer";
 import { StarIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { useEffect, useState, use } from "react";
+import FavoriteButton from "@/components/FavoriteButton";
+import ReviewList from "@/components/ReviewList";
 // Remove MockService import
 // import { MockService, Product } from "@/lib/mock-service";
 
@@ -18,7 +20,7 @@ interface Product {
     images?: string[];
     features?: string[];
     sizes?: string[];
-    owner_id: string;
+    ownerId: string;
 }
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -31,6 +33,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [totalPrice, setTotalPrice] = useState(0);
+    const [seller, setSeller] = useState<{ name: string; email: string } | null>(null);
 
     useEffect(() => {
         async function fetchProduct() {
@@ -43,8 +46,20 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    setProduct({ id: docSnap.id, ...docSnap.data() } as Product);
-                    setTotalPrice(docSnap.data().price); // Default 1 day price
+                    const pData = docSnap.data();
+                    setProduct({ id: docSnap.id, ...pData } as Product);
+                    setTotalPrice(pData.price);
+
+                    // Fetch seller info
+                    if (pData.ownerId) {
+                        try {
+                            const sellerDoc = await getDoc(doc(db, 'users', pData.ownerId));
+                            if (sellerDoc.exists()) {
+                                const sd = sellerDoc.data();
+                                setSeller({ name: sd.full_name || 'Satıcı', email: sd.email || '' });
+                            }
+                        } catch (e) { console.error('Seller fetch error', e); }
+                    }
                 } else {
                     console.log("No such document!");
                 }
@@ -84,6 +99,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             title: product!.title,
             price: product!.price,
             image: product!.image,
+            ownerId: product!.ownerId,
             duration: Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))),
             startDate,
             endDate
@@ -130,7 +146,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="grid grid-cols-1 md:grid-cols-2">
                         {/* Image Gallery */}
-                        <div className="bg-gray-200 h-96 md:h-auto min-h-[500px] relative">
+                        <div className="bg-gray-200 h-96 md:h-auto min-h-[500px] relative group">
                             {product.image ? (
                                 <img src={product.image} alt={product.title} className="w-full h-full object-cover" />
                             ) : (
@@ -138,6 +154,18 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                     Görsel Yok
                                 </div>
                             )}
+                            <div className="absolute top-4 right-4 z-10">
+                                <FavoriteButton
+                                    productId={product.id}
+                                    productData={{
+                                        title: product.title,
+                                        price: product.price,
+                                        image: product.image,
+                                        category: product.category
+                                    }}
+                                    className="bg-white/80 backdrop-blur p-3 shadow-md hover:bg-white text-gray-500"
+                                />
+                            </div>
                         </div>
 
                         {/* Product Info */}
@@ -255,13 +283,18 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 </button>
                             </div>
 
-                            <div className="mt-auto pt-6 border-t border-gray-100 flex items-center space-x-4">
-                                <div className="w-12 h-12 bg-gray-200 rounded-full flex-shrink-0 flex items-center justify-center text-gray-500 font-bold">
-                                    ?
+                            <div className="mt-12 pt-8 border-t border-gray-200">
+                                <h2 className="text-xl font-bold text-gray-900 mb-6">Yorumlar ve Değerlendirmeler</h2>
+                                <ReviewList productId={product.id} />
+                            </div>
+
+                            <div className="mt-8 pt-6 border-t border-gray-100 flex items-center space-x-4">
+                                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-lg">
+                                    {seller ? seller.name.charAt(0).toUpperCase() : '?'}
                                 </div>
                                 <div>
-                                    <p className="font-bold text-gray-900">Satıcı</p>
-                                    <p className="text-xs text-gray-500">Mağaza Puanı: 9.8</p>
+                                    <p className="font-bold text-gray-900">{seller ? seller.name : 'Satıcı'}</p>
+                                    <p className="text-xs text-gray-500">{seller?.email || ''}</p>
                                 </div>
                                 <div className="ml-auto">
                                     <span className="text-green-600 text-sm font-medium">Onaylı Hesap ✓</span>
