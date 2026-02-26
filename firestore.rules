@@ -66,5 +66,20 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
+
+    // 5. FAVORİLER (Favorites) — FavoriteButton bileşeni tarafından kullanılır
+    match /favorites/{favId} {
+      // resource null olabilir (belge yoksa) — bu yüzden sadece isSignedIn() ile kontrol et
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // 6. DEĞERLENDİRMELER (Reviews) — Üst seviye koleksiyon
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
   }
 }

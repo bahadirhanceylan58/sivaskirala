@@ -14,7 +14,8 @@ export default function DashboardPage() {
     const [myProducts, setMyProducts] = useState<any[]>([]);
     const [myRentals, setMyRentals] = useState<any[]>([]);
     const [myFavorites, setMyFavorites] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'listings' | 'rentals' | 'favorites'>('listings');
+    const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'listings' | 'rentals' | 'favorites' | 'incoming'>('listings');
 
     // Review State
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -78,6 +79,19 @@ export default function DashboardPage() {
                     setMyRentals(rentals);
                 } catch (e) {
                     console.error("Error fetching rentals", e);
+                }
+
+                // Fetch Incoming Requests (Bookings where user is the owner)
+                try {
+                    const qIncoming = query(collection(db, "bookings"), where("ownerId", "==", currentUser.uid));
+                    const incomingSnapshot = await getDocs(qIncoming);
+                    const incoming: any[] = [];
+                    incomingSnapshot.forEach((doc) => {
+                        incoming.push({ id: doc.id, ...doc.data() });
+                    });
+                    setIncomingRequests(incoming);
+                } catch (e) {
+                    console.error("Error fetching incoming requests", e);
                 }
             });
 
@@ -147,17 +161,27 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex space-x-6 border-b border-gray-200 mb-8">
+                <div className="flex flex-wrap gap-1 border-b border-gray-200 mb-8">
                     <button
                         onClick={() => setActiveTab('listings')}
-                        className={`pb-4 px-2 font-bold text-lg transition-colors relative ${activeTab === 'listings' ? 'text-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`pb-4 px-3 font-bold text-base transition-colors relative ${activeTab === 'listings' ? 'text-primary' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         İlanlarım ({myProducts.length})
                         {activeTab === 'listings' && <div className="absolute bottom-0 left-0 w-full h-1 bg-primary rounded-t-full"></div>}
                     </button>
                     <button
+                        onClick={() => setActiveTab('incoming')}
+                        className={`pb-4 px-3 font-bold text-base transition-colors relative ${activeTab === 'incoming' ? 'text-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Gelen Talepler
+                        {incomingRequests.length > 0 && (
+                            <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{incomingRequests.length}</span>
+                        )}
+                        {activeTab === 'incoming' && <div className="absolute bottom-0 left-0 w-full h-1 bg-primary rounded-t-full"></div>}
+                    </button>
+                    <button
                         onClick={() => setActiveTab('rentals')}
-                        className={`pb-4 px-2 font-bold text-lg transition-colors relative ${activeTab === 'rentals' ? 'text-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`pb-4 px-3 font-bold text-base transition-colors relative ${activeTab === 'rentals' ? 'text-primary' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         Kiraladıklarım ({myRentals.length})
                         {activeTab === 'rentals' && <div className="absolute bottom-0 left-0 w-full h-1 bg-primary rounded-t-full"></div>}
@@ -165,7 +189,79 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Content */}
-                {activeTab === 'listings' ? (
+                {activeTab === 'incoming' ? (
+                    incomingRequests.length === 0 ? (
+                        <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
+                            <div className="text-4xl mb-4">📬</div>
+                            <h3 className="text-lg font-bold text-gray-800 mb-2">Henüz gelen talep yok</h3>
+                            <p className="text-gray-500">İlanlarınıza kiralama talebi geldiğinde burada görünecek.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {incomingRequests.map((req: any) => (
+                                <div key={req.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        {/* Product image */}
+                                        <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                            {req.productImage ? (
+                                                <img src={req.productImage} alt="" className="w-full h-full object-cover" />
+                                            ) : <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>}
+                                        </div>
+                                        {/* Details */}
+                                        <div className="flex-1">
+                                            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                                                <h3 className="font-bold text-gray-900">{req.productTitle}</h3>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                                        req.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                            'bg-yellow-100 text-yellow-700'
+                                                    }`}>
+                                                    {req.status === 'approved' ? '✅ Onaylandı' : req.status === 'rejected' ? '❌ Reddedildi' : '⏳ Beklemede'}
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-gray-600 mb-3">
+                                                <div><span className="text-gray-400">Talep Eden:</span><br /><strong>{req.renterFirstName} {req.renterLastName}</strong></div>
+                                                <div><span className="text-gray-400">Telefon:</span><br />
+                                                    <a href={`tel:${req.renterPhone}`} className="font-bold text-primary hover:underline">{req.renterPhone}</a>
+                                                </div>
+                                                <div><span className="text-gray-400">Tarih:</span><br />
+                                                    <strong>{req.startDate ? new Date(req.startDate).toLocaleDateString('tr-TR') : '-'} → {req.endDate ? new Date(req.endDate).toLocaleDateString('tr-TR') : '-'}</strong>
+                                                </div>
+                                                <div><span className="text-gray-400">Süre:</span><br /><strong>{req.duration} gün</strong></div>
+                                                <div><span className="text-gray-400">Toplam:</span><br /><strong className="text-primary">{req.totalPrice?.toLocaleString('tr-TR')} ₺</strong></div>
+                                                {req.renterNote && <div className="sm:col-span-3"><span className="text-gray-400">Not:</span> {req.renterNote}</div>}
+                                            </div>
+                                            {req.status === 'pending' && (
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        onClick={async () => {
+                                                            const { db } = await import('@/lib/firebase');
+                                                            const { doc, updateDoc } = await import('firebase/firestore');
+                                                            await updateDoc(doc(db, 'bookings', req.id), { status: 'approved' });
+                                                            setIncomingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'approved' } : r));
+                                                        }}
+                                                        className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors"
+                                                    >✅ Onayla</button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const { db } = await import('@/lib/firebase');
+                                                            const { doc, updateDoc } = await import('firebase/firestore');
+                                                            await updateDoc(doc(db, 'bookings', req.id), { status: 'rejected' });
+                                                            setIncomingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'rejected' } : r));
+                                                        }}
+                                                        className="border border-red-300 text-red-500 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-50 transition-colors"
+                                                    >❌ Reddet</button>
+                                                    <a href={`tel:${req.renterPhone}`}
+                                                        className="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                                                    >📞 Ara</a>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                ) : activeTab === 'listings' ? (
                     myProducts.length === 0 ? (
                         <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                             <div className="text-4xl mb-4">📦</div>
@@ -238,8 +334,8 @@ export default function DashboardPage() {
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${rental.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                    rental.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-gray-100 text-gray-600'}`}>
+                                                rental.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-gray-100 text-gray-600'}`}>
                                                 {rental.status === 'approved' ? 'Onaylandı' : rental.status === 'pending' ? 'Beklemede' : rental.status}
                                             </span>
                                             {rental.status === 'approved' && (

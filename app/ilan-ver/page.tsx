@@ -24,19 +24,27 @@ export default function AddItemPage() {
     const [location, setLocation] = useState<{ lat: number, lng: number }>({ lat: 39.7505, lng: 37.0150 });
 
     useEffect(() => {
-        const checkAuth = async () => {
-            const { auth } = await import('@/lib/firebase');
-            const { onAuthStateChanged } = await import('firebase/auth');
-            onAuthStateChanged(auth, (user) => {
-                if (!user) {
-                    alert('İlan vermek için önce giriş yapmalısınız!');
-                    router.push('/giris-yap');
-                } else {
-                    setCurrentUser(user);
-                }
-            });
+        let unsubscribe: (() => void) | null = null;
+
+        const initAuth = async () => {
+            try {
+                const { auth } = await import('@/lib/firebase');
+                const { onAuthStateChanged } = await import('firebase/auth');
+                unsubscribe = onAuthStateChanged(auth, (user) => {
+                    if (!user) {
+                        router.push('/giris-yap');
+                    } else {
+                        setCurrentUser(user);
+                    }
+                });
+            } catch (err) {
+                console.error('Auth başlatma hatası:', err);
+                router.push('/giris-yap');
+            }
         };
-        checkAuth();
+
+        initAuth();
+        return () => { if (unsubscribe) unsubscribe(); };
     }, [router]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,36 +63,70 @@ export default function AddItemPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Guard: user must be logged in
+        if (!currentUser) {
+            alert('İlan vermek için önce giriş yapmalısınız!');
+            router.push('/giris-yap');
+            return;
+        }
+
         setLoading(true);
 
         try {
-            if (!currentUser) return;
+            // Refresh auth token to ensure it hasn't expired
+            const { getAuth } = await import('firebase/auth');
+            const auth = getAuth();
+            const freshUser = auth.currentUser;
+            if (!freshUser) {
+                alert('Oturum süresi dolmuş, lütfen tekrar giriş yapın.');
+                router.push('/giris-yap');
+                return;
+            }
+            await freshUser.getIdToken(true); // force refresh
 
-            const { db, storage } = await import('@/lib/firebase');
+            const { db } = await import('@/lib/firebase');
             const { collection, addDoc } = await import('firebase/firestore');
-            const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
 
-            // 1. Upload Images
-            let imageUrl = 'https://via.placeholder.com/400'; // Default placeholder
+            // 1. Upload ALL Images
+            const uploadedUrls: string[] = [];
             if (imageFiles.length > 0) {
-                const file = imageFiles[0]; // For now just take the first one as main image
-                const storageRef = ref(storage, `products/${currentUser.uid}/${Date.now()}_${file.name}`);
-                const snapshot = await uploadBytes(storageRef, file);
-                imageUrl = await getDownloadURL(snapshot.ref);
+                try {
+                    const { storage } = await import('@/lib/firebase');
+                    const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+
+                    for (const file of imageFiles) {
+                        try {
+                            const storageRef = ref(storage, `products/${freshUser.uid}/${Date.now()}_${file.name}`);
+                            const timeoutPromise = new Promise<never>((_, reject) =>
+                                setTimeout(() => reject(new Error('Yükleme zaman aşımına uğradı')), 15000)
+                            );
+                            const snapshot = await Promise.race([uploadBytes(storageRef, file), timeoutPromise]);
+                            const url = await getDownloadURL(snapshot.ref);
+                            uploadedUrls.push(url);
+                        } catch (fileErr: any) {
+                            console.warn(`Fotoğraf atlandı (${file.name}):`, fileErr?.message);
+                        }
+                    }
+                } catch (uploadError: any) {
+                    console.warn('Storage başlatma hatası:', uploadError?.message);
+                }
             }
 
+            const mainImage = uploadedUrls.length > 0 ? uploadedUrls[0] : '/placeholder-product.png';
+            const allImages = uploadedUrls.length > 0 ? uploadedUrls : ['/placeholder-product.png'];
+
             // 2. Save to Firestore
-            await addDoc(collection(db, "products"), {
+            await addDoc(collection(db, 'products'), {
                 title,
                 description,
-                price: parseFloat(price),
+                price: parseFloat(price) || 0,
                 category,
-                image: imageUrl,
-                images: [imageUrl], // Future proofing for multiple images
-                owner_email: currentUser.email,
-                ownerId: currentUser.uid,
-
-                status: 'pending', // Requires admin approval
+                image: mainImage,
+                images: allImages,
+                owner_email: freshUser.email || '',
+                ownerId: freshUser.uid,
+                status: 'pending',
                 location: 'Sivas Merkez',
                 lat: location.lat,
                 lng: location.lng,
@@ -95,8 +137,8 @@ export default function AddItemPage() {
             router.push('/hesabim');
 
         } catch (error: any) {
-            console.error(error);
-            alert('Bir hata oluştu: ' + (error.message || JSON.stringify(error)));
+            console.error('İlan gönderme hatası:', error?.code, error?.message);
+            alert('Hata (' + (error?.code || 'bilinmeyen') + '): ' + (error?.message || 'Lütfen tekrar deneyiniz.'));
         } finally {
             setLoading(false);
         }
@@ -191,7 +233,7 @@ export default function AddItemPage() {
                         {/* Map Location Picker */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Konum Seçimi</label>
-                            <div className="h-64 rounded-xl overflow-hidden border border-gray-300">
+                            <div className="h-64 rounded-xl overflow-hidden border border-gray-300" style={{ isolation: 'isolate', position: 'relative', zIndex: 0 }}>
                                 <LocationPicker onLocationSelect={(lat, lng) => setLocation({ lat, lng })} />
                             </div>
                             <p className="text-xs text-gray-500 mt-1">

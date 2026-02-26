@@ -118,7 +118,7 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {products.length === 0 ? (
                 <div className="col-span-full text-center py-16 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-dashed border-green-200">
                   <div className="text-6xl mb-4">📦</div>
@@ -131,39 +131,62 @@ export default function Home() {
                 </div>
               ) : (
                 products.map((item) => (
-                  <div key={item.id} className="relative group animate-fade-in-up">
-                    <Link href={`/ilan/${item.id}`}
-                      className="block h-full border border-gray-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white">
-                      <div className="h-52 bg-gray-200 relative overflow-hidden">
-                        {item.image ? (
-                          <img src={item.image} alt={item.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">Görsel Yok</div>
-                        )}
-                        <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm font-bold text-gray-800 shadow-sm">
-                          {item.price} ₺ <span className="text-xs text-gray-500 font-normal">/ gün</span>
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <span className="text-xs text-primary font-semibold bg-green-50 px-2 py-0.5 rounded-full">{item.category}</span>
-                        <h3 className="font-bold text-lg mt-2 mb-3 group-hover:text-primary transition-colors text-gray-900 truncate">{item.title}</h3>
-                        <button className="w-full border-2 border-primary text-primary font-semibold py-2.5 rounded-xl hover:bg-primary hover:text-white transition-all duration-200">
-                          İncele
-                        </button>
-                      </div>
-                    </Link>
-                    <div className="absolute top-3 left-3 z-20">
+                  <div key={item.id} className="relative group">
+                    {/* Favorite button */}
+                    <div className="absolute top-3 right-3 z-20">
                       <FavoriteButton
                         productId={item.id}
                         productData={{ title: item.title, price: item.price, image: item.image, category: item.category }}
-                        className="bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
+                        className="bg-white shadow-sm hover:bg-gray-50 border border-gray-100"
                       />
                     </div>
+
+                    <Link href={`/ilan/${item.id}`} className="block h-full">
+                      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 flex flex-col h-full">
+                        {/* Image area — white bg, object-contain like kiralabunu */}
+                        <div className="h-48 bg-white flex items-center justify-center p-4 relative overflow-hidden border-b border-gray-100">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.title}
+                              className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500"
+                              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png'; }}
+                            />
+                          ) : (
+                            <div className="text-gray-300 text-4xl">📦</div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="p-4 flex flex-col flex-1">
+                          {/* Category — green like brand name */}
+                          <p className="text-xs font-bold text-primary mb-1 uppercase tracking-wide">{item.category}</p>
+
+                          {/* Title */}
+                          <h3 className="font-bold text-gray-900 text-sm leading-snug mb-3 line-clamp-2 group-hover:text-primary transition-colors flex-1">
+                            {item.title}
+                          </h3>
+
+                          {/* Price row */}
+                          <div className="border-t border-gray-100 pt-3 flex items-end justify-between">
+                            <div>
+                              <p className="text-xs text-gray-400">Günlük</p>
+                              <p className="text-xl font-black text-gray-900">
+                                {item.price.toLocaleString('tr-TR')} <span className="text-base">₺</span>
+                              </p>
+                            </div>
+                            <span className="bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors">
+                              Kirala
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
                   </div>
                 ))
               )}
             </div>
+
           </div>
         </section>
 

@@ -16,7 +16,7 @@ const Navbar = () => {
     useEffect(() => {
         const updateCount = () => {
             try {
-                const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+                const cart = JSON.parse(localStorage.getItem('sivas_cart') || '[]');
                 setCartCount(cart.length);
             } catch { setCartCount(0); }
         };
