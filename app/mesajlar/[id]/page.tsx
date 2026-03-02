@@ -66,7 +66,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                 router.push('/mesajlar');
                 return;
             }
-            setConversation({ id: convSnap.id, ...data });
+            const { id: _omit, ...rest } = data as any;
+            setConversation({ id: convSnap.id, ...rest } as Conversation);
 
             // Diğer kullanıcı adını al
             const otherId = data.buyerId === currentUser.uid ? data.sellerId : data.buyerId;
