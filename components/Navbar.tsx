@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Fragment } from 'react';
-import { UserCircleIcon, ShoppingBagIcon, PlusCircleIcon, BellIcon, Bars3Icon, XMarkIcon, MagnifyingGlassIcon, UserIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { UserCircleIcon, ShoppingBagIcon, PlusCircleIcon, BellIcon, Bars3Icon, XMarkIcon, MagnifyingGlassIcon, UserIcon, ShoppingCartIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
 import NotificationDropdown from './NotificationDropdown';
 
@@ -11,6 +11,7 @@ const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [cartCount, setCartCount] = useState(0);
+    const [unreadMessages, setUnreadMessages] = useState(0);
 
     // Sync cart count
     useEffect(() => {
@@ -73,6 +74,30 @@ const Navbar = () => {
         };
     }, []);
 
+    // Unread messages listener
+    useEffect(() => {
+        if (!user) { setUnreadMessages(0); return; }
+        let cleanup: any;
+        const listen = async () => {
+            const { db } = await import('@/lib/firebase');
+            const { collection, query, where, onSnapshot } = await import('firebase/firestore');
+            const buyerQ = query(collection(db, 'conversations'), where('buyerId', '==', user.id));
+            const sellerQ = query(collection(db, 'conversations'), where('sellerId', '==', user.id));
+            let buyerUnread = 0, sellerUnread = 0;
+            const u1 = onSnapshot(buyerQ, (snap) => {
+                buyerUnread = snap.docs.reduce((s, d) => s + (d.data().unreadBuyer || 0), 0);
+                setUnreadMessages(buyerUnread + sellerUnread);
+            });
+            const u2 = onSnapshot(sellerQ, (snap) => {
+                sellerUnread = snap.docs.reduce((s, d) => s + (d.data().unreadSeller || 0), 0);
+                setUnreadMessages(buyerUnread + sellerUnread);
+            });
+            return () => { u1(); u2(); };
+        };
+        listen().then(c => cleanup = c);
+        return () => cleanup?.();
+    }, [user]);
+
     return (
         <header className="bg-white shadow-sm sticky top-0 z-50 border-b-4 border-primary">
             {/* Top Bar (Mobile/Desktop) */}
@@ -121,6 +146,19 @@ const Navbar = () => {
                             <Link href="/ilan-ver" className="text-gray-600 hover:text-primary transition-colors flex flex-col items-center group">
                                 <PlusCircleIcon className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" />
                                 <span className="text-xs font-medium">İlan Ver</span>
+                            </Link>
+
+                            {/* Messages */}
+                            <Link href="/mesajlar" className="relative text-gray-600 hover:text-primary transition-colors flex flex-col items-center group">
+                                <div className="relative">
+                                    <ChatBubbleLeftRightIcon className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" />
+                                    {unreadMessages > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                                            {unreadMessages > 9 ? '9+' : unreadMessages}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="text-xs font-medium">Mesajlar</span>
                             </Link>
 
                             {/* Notification Dropdown */}
@@ -198,12 +236,25 @@ const Navbar = () => {
                             <Link href="/kategori/elektronik" className="text-gray-700 hover:text-primary font-medium">Elektronik</Link>
                             <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col gap-3">
                                 {user ? (
-                                    <Link href="/hesabim" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
-                                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-primary font-bold text-xs">
-                                            {user.fullName.charAt(0)}
-                                        </div>
-                                        <span>Hesabım</span>
-                                    </Link>
+                                    <>
+                                        <Link href="/mesajlar" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
+                                            <div className="relative">
+                                                <ChatBubbleLeftRightIcon className="h-5 w-5" />
+                                                {unreadMessages > 0 && (
+                                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-3.5 w-3.5 flex items-center justify-center">
+                                                        {unreadMessages > 9 ? '9+' : unreadMessages}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span>Mesajlarım {unreadMessages > 0 && `(${unreadMessages})`}</span>
+                                        </Link>
+                                        <Link href="/hesabim" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
+                                            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-primary font-bold text-xs">
+                                                {user.fullName.charAt(0)}
+                                            </div>
+                                            <span>Hesabım</span>
+                                        </Link>
+                                    </>
                                 ) : (
                                     <Link href="/giris-yap" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
                                         <UserIcon className="h-5 w-5" />

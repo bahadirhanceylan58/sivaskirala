@@ -81,5 +81,27 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
+
+    // 7. MESAJLAŞMA (Conversations)
+    match /conversations/{convId} {
+      allow read, update: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid ||
+        resource.data.sellerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+
+      // Mesajlar alt koleksiyonu
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/conversations/$(convId)).data.buyerId == request.auth.uid ||
+          get(/databases/$(database)/documents/conversations/$(convId)).data.sellerId == request.auth.uid
+        );
+        allow create: if isSignedIn() && (
+          get(/databases/$(database)/documents/conversations/$(convId)).data.buyerId == request.auth.uid ||
+          get(/databases/$(database)/documents/conversations/$(convId)).data.sellerId == request.auth.uid
+        ) && request.resource.data.senderId == request.auth.uid;
+      }
+    }
   }
 }

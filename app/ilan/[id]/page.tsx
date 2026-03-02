@@ -469,7 +469,40 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                     WhatsApp ile Yaz
                                 </button>
                                 <button
-                                    onClick={() => alert('Mesaj sistemi yakında!')}
+                                    onClick={async () => {
+                                        if (!currentUser) { window.location.href = '/giris-yap'; return; }
+                                        if (currentUser.uid === product?.ownerId) { alert('Kendi ilanınıza mesaj gönderemezsiniz.'); return; }
+                                        try {
+                                            const { db } = await import('@/lib/firebase');
+                                            const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('firebase/firestore');
+                                            // Mevcut konuşmayı bul
+                                            const q = query(
+                                                collection(db, 'conversations'),
+                                                where('buyerId', '==', currentUser.uid),
+                                                where('productId', '==', product!.id)
+                                            );
+                                            const snap = await getDocs(q);
+                                            let convId: string;
+                                            if (!snap.empty) {
+                                                convId = snap.docs[0].id;
+                                            } else {
+                                                const newConv = await addDoc(collection(db, 'conversations'), {
+                                                    buyerId: currentUser.uid,
+                                                    sellerId: product!.ownerId,
+                                                    productId: product!.id,
+                                                    productTitle: product!.title,
+                                                    productImage: product!.image || '',
+                                                    lastMessage: '',
+                                                    lastMessageAt: serverTimestamp(),
+                                                    unreadBuyer: 0,
+                                                    unreadSeller: 0,
+                                                    createdAt: serverTimestamp(),
+                                                });
+                                                convId = newConv.id;
+                                            }
+                                            window.location.href = `/mesajlar/${convId}`;
+                                        } catch (e) { console.error(e); alert('Bir hata oluştu.'); }
+                                    }}
                                     className="flex items-center justify-center gap-2 w-full border border-gray-200 text-gray-600 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors text-sm">
                                     <ChatBubbleLeftIcon className="h-4 w-4" />
                                     Mesaj Gönder
