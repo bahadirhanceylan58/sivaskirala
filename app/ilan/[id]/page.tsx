@@ -460,7 +460,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                     {seller?.name?.charAt(0).toUpperCase() || '?'}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-gray-900 text-lg truncate">{seller?.name || 'Satıcı'}</p>
+                                    <Link href={`/kullanici/${product?.ownerId}`} className="font-bold text-gray-900 text-lg truncate hover:text-primary transition-colors">
+                                        {seller?.name || 'Satıcı'}
+                                    </Link>
                                     <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                                         <ShieldCheckIcon className="h-3.5 w-3.5 text-green-500" />
                                         <span>Onaylı Hesap</span>
