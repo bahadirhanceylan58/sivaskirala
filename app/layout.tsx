@@ -13,22 +13,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sivas Kirala - Kiralık Ürünler Platformu",
-  description: "Sivas'ın en büyük kiralama platformu. Elektronik, giyim, kamp malzemeleri ve daha fazlasını kiralayın.",
+  title: {
+    default: "Sivas Kirala — Sivas'ın Kiralama Platformu",
+    template: "%s | Sivas Kirala",
+  },
+  description: "Sivas'ta elektronik, kamp malzemeleri, abiye, organizasyon ekipmanları ve daha fazlasını günlük kiralayın. Güvenli, hızlı, uygun fiyatlı.",
+  keywords: ["sivas kiralık", "kiralama sivas", "günlük kiralık", "elektronik kiralık sivas", "kamp malzemeleri kiralık"],
+  metadataBase: new URL("https://sivaskirala.vercel.app"),
+  alternates: { canonical: "/" },
+  robots: { index: true, follow: true },
   openGraph: {
-    title: "Sivas Kirala - Kiralık Ürünler Platformu",
-    description: "Sivas'ın en büyük kiralama platformu. Elektronik, giyim, kamp malzemeleri ve daha fazlasını kiralayın.",
-    url: "https://sivas-kirala.web.app",
+    title: "Sivas Kirala — Sivas'ın Kiralama Platformu",
+    description: "Sivas'ta her şeyi günlük kirala. Elektronik, giyim, kamp malzemeleri ve daha fazlası.",
+    url: "https://sivaskirala.vercel.app",
     siteName: "Sivas Kirala",
     locale: "tr_TR",
     type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Sivas Kirala" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sivas Kirala - Kiralık Ürünler Platformu",
-    description: "Sivas'ın en büyük kiralama platformu.",
+    title: "Sivas Kirala — Sivas'ın Kiralama Platformu",
+    description: "Sivas'ta her şeyi günlük kirala.",
+    images: ["/og-image.png"],
   },
 };
+
 
 export default function RootLayout({
   children,
