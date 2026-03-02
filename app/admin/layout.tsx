@@ -32,6 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [loading, setLoading] = useState(true);
     const [adminUser, setAdminUser] = useState<{ name: string; email: string } | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0);
     const pathname = usePathname();
 
     useEffect(() => {
@@ -81,6 +82,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         checkAdmin();
     }, []);
+
+    // Live pending listings count
+    useEffect(() => {
+        if (!isAdmin) return;
+        const listen = async () => {
+            const { db } = await import('@/lib/firebase');
+            const { collection, query, where, onSnapshot } = await import('firebase/firestore');
+            const q = query(collection(db, 'products'), where('status', '==', 'pending'));
+            return onSnapshot(q, (snap) => setPendingCount(snap.size));
+        };
+        let unsub: any;
+        listen().then(u => unsub = u);
+        return () => unsub?.();
+    }, [isAdmin]);
 
     const handleSignOut = async () => {
         const { auth } = await import('@/lib/firebase');
@@ -138,7 +153,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         >
                             <item.icon className={`h-5 w-5 flex-shrink-0 ${active ? 'text-green-400' : ''}`} />
                             {item.label}
-                            {active && (
+                            {item.href === '/admin/ilanlar' && pendingCount > 0 && (
+                                <span className="ml-auto bg-orange-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                                    {pendingCount}
+                                </span>
+                            )}
+                            {active && !(item.href === '/admin/ilanlar' && pendingCount > 0) && (
                                 <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400" />
                             )}
                         </Link>

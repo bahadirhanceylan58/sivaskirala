@@ -61,13 +61,33 @@ export default function AdminProductsPage() {
 
     useEffect(() => { fetchProducts(); }, []);
 
-    const updateStatus = async (id: string, newStatus: string) => {
+    const updateStatus = async (id: string, newStatus: string, product?: Product) => {
         const labels: Record<string, string> = { active: 'onaylamak', passive: 'pasife almak', pending: 'beklemede tutmak' };
         if (!confirm(`Bu ilanı ${labels[newStatus] || newStatus} istiyor musunuz?`)) return;
         try {
             const { db } = await import('@/lib/firebase');
-            const { doc, updateDoc } = await import('firebase/firestore');
+            const { doc, updateDoc, addDoc, collection, serverTimestamp } = await import('firebase/firestore');
             await updateDoc(doc(db, 'products', id), { status: newStatus });
+
+            // Kullanıcıya bildirim gönder
+            const prod = product || products.find(p => p.id === id);
+            if (prod?.ownerId) {
+                const notifMsg = newStatus === 'active'
+                    ? `"${prod.title}" ilanınız onaylandı ve yayına alındı! 🎉`
+                    : newStatus === 'passive'
+                        ? `"${prod.title}" ilanınız pasife alındı.`
+                        : null;
+                if (notifMsg) {
+                    await addDoc(collection(db, 'notifications'), {
+                        userId: prod.ownerId,
+                        message: notifMsg,
+                        type: newStatus === 'active' ? 'success' : 'info',
+                        read: false,
+                        productId: id,
+                        createdAt: serverTimestamp(),
+                    });
+                }
+            }
             fetchProducts();
         } catch (error: any) {
             alert('Hata: ' + error.message);
