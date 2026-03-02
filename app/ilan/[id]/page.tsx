@@ -8,6 +8,12 @@ import Link from "next/link";
 import { useEffect, useState, use } from "react";
 import ReviewList from "@/components/ReviewList";
 import ReviewModal from "@/components/ReviewModal";
+import dynamic from "next/dynamic";
+
+const MapView = dynamic(() => import('@/components/Map/LocationPicker'), {
+    ssr: false,
+    loading: () => <div className="h-full w-full bg-gray-100 flex items-center justify-center text-gray-400 text-sm">Harita yükleniyor...</div>
+});
 
 interface Product {
     id: string;
@@ -336,6 +342,28 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                             </div>
                             <ReviewList productId={product.id} />
                         </div>
+
+                        {/* Location Map */}
+                        {product.lat && product.lng && (
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <MapPinIcon className="h-5 w-5 text-primary" />
+                                    Konum
+                                </h2>
+                                <div className="h-56 rounded-xl overflow-hidden border border-gray-100" style={{ isolation: 'isolate', position: 'relative', zIndex: 0 }}>
+                                    <MapView
+                                        initialLat={product.lat}
+                                        initialLng={product.lng}
+                                        readOnly={true}
+                                        onLocationSelect={() => { }}
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                    <MapPinIcon className="h-3.5 w-3.5" />
+                                    Tahmini konum — kesin adres kiralama onayından sonra paylaşılır.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* RIGHT COLUMN — Booking + Seller */}
