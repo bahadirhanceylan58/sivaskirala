@@ -66,12 +66,12 @@ export default function AdminProductsPage() {
         if (!confirm(`Bu ilanı ${labels[newStatus] || newStatus} istiyor musunuz?`)) return;
         try {
             const { db } = await import('@/lib/firebase');
-            const { doc, updateDoc, addDoc, collection, serverTimestamp } = await import('firebase/firestore');
+            const { doc, updateDoc, addDoc, collection, serverTimestamp, getDoc } = await import('firebase/firestore');
             await updateDoc(doc(db, 'products', id), { status: newStatus });
 
-            // Kullanıcıya bildirim gönder
             const prod = product || products.find(p => p.id === id);
             if (prod?.ownerId) {
+                // In-app bildirim
                 const notifMsg = newStatus === 'active'
                     ? `"${prod.title}" ilanınız onaylandı ve yayına alındı! 🎉`
                     : newStatus === 'passive'
@@ -86,6 +86,25 @@ export default function AdminProductsPage() {
                         productId: id,
                         createdAt: serverTimestamp(),
                     });
+                }
+
+                // E-posta bildirimi
+                try {
+                    const userSnap = await getDoc(doc(db, 'users', prod.ownerId));
+                    const ownerEmail = userSnap.exists() ? userSnap.data().email : prod.owner?.email;
+                    if (ownerEmail && (newStatus === 'active' || newStatus === 'passive')) {
+                        const { emailTemplates } = await import('@/lib/email-templates');
+                        const tpl = newStatus === 'active'
+                            ? emailTemplates.listingApproved(prod.title, id)
+                            : emailTemplates.listingRejected(prod.title);
+                        await fetch('/api/send-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ to: ownerEmail, ...tpl }),
+                        });
+                    }
+                } catch (emailErr) {
+                    console.warn('E-posta gönderilemedi:', emailErr);
                 }
             }
             fetchProducts();
