@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { HeartIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import { toast } from 'sonner';
 
 interface FavoriteButtonProps {
     productId: string;
@@ -50,7 +51,7 @@ export default function FavoriteButton({ productId, productData, className = "" 
         e.stopPropagation();
 
         if (!userId) {
-            alert('Favorilere eklemek için giriş yapmalısınız.');
+            toast.error('Favorilere eklemek için giriş yapmalısınız.');
             return;
         }
 
@@ -63,11 +64,10 @@ export default function FavoriteButton({ productId, productData, className = "" 
             const favRef = doc(db, "favorites", favId);
 
             if (isFavorite) {
-                // Remove
                 await deleteDoc(favRef);
                 setIsFavorite(false);
+                toast.success('Favorilerden kaldırıldı.');
             } else {
-                // Add
                 await setDoc(favRef, {
                     userId,
                     productId,
@@ -75,6 +75,7 @@ export default function FavoriteButton({ productId, productData, className = "" 
                     created_at: new Date().toISOString()
                 });
                 setIsFavorite(true);
+                toast.success('Favorilere eklendi!');
             }
         } catch (error) {
             console.error("Error toggling favorite:", error);

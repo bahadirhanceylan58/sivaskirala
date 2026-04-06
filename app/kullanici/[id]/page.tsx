@@ -28,7 +28,7 @@ export default function SellerProfilePage({ params }: { params: Promise<{ id: st
     const { id } = use(params);
 
     const [seller, setSeller] = useState<SellerProfile | null>(null);
-    const [listings, setListings] = useState<any[]>([]);
+    const [listings, setListings] = useState<{ id: string; title: string; price: number; image?: string; category: string }[]>([]);
     const [avgRating, setAvgRating] = useState<number>(0);
     const [reviewCount, setReviewCount] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -57,7 +57,7 @@ export default function SellerProfilePage({ params }: { params: Promise<{ id: st
                 setListings(products);
 
                 // Fetch reviews for seller's products
-                const productIds = products.map((p: any) => p.id);
+                const productIds = products.map(p => p.id);
                 if (productIds.length > 0) {
                     // Firestore 'in' limit is 30 — safe for normal usage
                     const chunks = [];
@@ -65,7 +65,7 @@ export default function SellerProfilePage({ params }: { params: Promise<{ id: st
                     let allRatings: number[] = [];
                     for (const chunk of chunks) {
                         const { getDocs: gd, query: q, collection: col, where: w } = await import('firebase/firestore');
-                        const revSnap = await gd(q(col(db, 'reviews'), w('product_id', 'in', chunk)));
+                        const revSnap = await gd(q(col(db, 'reviews'), w('productId', 'in', chunk)));
                         revSnap.docs.forEach(d => { const data = d.data(); if (data.rating) allRatings.push(data.rating); });
                     }
                     setReviewCount(allRatings.length);

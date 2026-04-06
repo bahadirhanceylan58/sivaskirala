@@ -26,16 +26,16 @@ export default function LoginPage() {
 
             window.location.href = '/'; // Redirect to home
 
-        } catch (err: any) {
+        } catch (err) {
             console.error('Login error:', err);
-            // Firebase error codes
-            let message = err.message;
-            if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-                message = 'E-posta veya şifre hatalı.';
-            } else if (err.code === 'auth/too-many-requests') {
-                message = 'Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.';
+            const { code, message } = err as { code?: string; message?: string };
+            let msg = message || 'Bir hata oluştu.';
+            if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+                msg = 'E-posta veya şifre hatalı.';
+            } else if (code === 'auth/too-many-requests') {
+                msg = 'Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.';
             }
-            setError(message);
+            setError(msg);
         } finally {
             setLoading(false);
         }
@@ -91,7 +91,13 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center text-sm text-gray-500">
+                    <div className="mt-4 text-center text-sm">
+                        <Link href="/sifremi-unuttum" className="text-gray-500 hover:text-primary transition-colors">
+                            Şifremi Unuttum
+                        </Link>
+                    </div>
+
+                    <div className="mt-4 text-center text-sm text-gray-500">
                         Hesabınız yok mu?{' '}
                         <Link href="/kayit-ol" className="text-primary font-bold hover:underline">
                             Hemen Kayıt Olun

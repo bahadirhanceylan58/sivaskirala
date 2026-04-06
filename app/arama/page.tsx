@@ -1,13 +1,29 @@
 'use client';
 
-import { useState, useEffect, Suspense, useCallback } from 'react';
+'use client';
+
+import { useState, useEffect, Suspense, useCallback, useRef } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import NextImage from 'next/image';
 import FavoriteButton from '@/components/FavoriteButton';
 import { AdjustmentsHorizontalIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+
+const PAGE_SIZE = 20;
+
+interface Product {
+    id: string;
+    title: string;
+    price: number;
+    image?: string;
+    category: string;
+    lat?: number;
+    lng?: number;
+    description?: string;
+}
 
 const MapCluster = dynamic(() => import('@/components/Map/MapCluster'), {
     ssr: false,
@@ -46,8 +62,11 @@ function SearchContent() {
     const queryParam = searchParams.get('q') || '';
     const categoryParam = searchParams.get('category') || '';
 
-    const [allProducts, setAllProducts] = useState<any[]>([]);
+    const [allProducts, setAllProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const lastDocRef = useRef<ReturnType<typeof Object.create> | null>(null);
 
     const [searchText, setSearchText] = useState(queryParam);
     const [selectedCategory, setSelectedCategory] = useState(categoryParam);
@@ -57,32 +76,57 @@ function SearchContent() {
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState<'split' | 'list'>('split');
 
-    // Fetch all active products once
-    useEffect(() => {
-        const fetchProducts = async () => {
+    const fetchProducts = useCallback(async (reset = false) => {
+        if (reset) {
             setLoading(true);
-            try {
-                const { db } = await import('@/lib/firebase');
-                const { collection, getDocs, query, where } = await import('firebase/firestore');
-                const q = query(collection(db, 'products'), where('status', '==', 'active'));
-                const snap = await getDocs(q);
-                const items: any[] = snap.docs.map(doc => {
-                    const data = doc.data();
-                    if (!data.lat) {
-                        data.lat = 39.7505 + (Math.random() - 0.5) * 0.05;
-                        data.lng = 37.0150 + (Math.random() - 0.5) * 0.05;
-                    }
-                    return { id: doc.id, ...data };
-                });
-                setAllProducts(items);
-            } catch (error) {
-                console.error('Error fetching products:', error);
-            } finally {
-                setLoading(false);
+        } else {
+            setLoadingMore(true);
+        }
+        try {
+            const { db } = await import('@/lib/firebase');
+            const { collection, getDocs, query, where, orderBy, limit, startAfter } = await import('firebase/firestore');
+
+            let q = query(
+                collection(db, 'products'),
+                where('status', '==', 'active'),
+                orderBy('created_at', 'desc'),
+                limit(PAGE_SIZE)
+            );
+
+            if (!reset && lastDocRef.current) {
+                q = query(
+                    collection(db, 'products'),
+                    where('status', '==', 'active'),
+                    orderBy('created_at', 'desc'),
+                    startAfter(lastDocRef.current),
+                    limit(PAGE_SIZE)
+                );
             }
-        };
-        fetchProducts();
+
+            const snap = await getDocs(q);
+            const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Product[];
+
+            lastDocRef.current = snap.docs[snap.docs.length - 1] || null;
+            setHasMore(snap.docs.length === PAGE_SIZE);
+
+            if (reset) {
+                setAllProducts(items);
+            } else {
+                setAllProducts(prev => [...prev, ...items]);
+            }
+        } catch (error) {
+            console.error('Error fetching products:', error);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
     }, []);
+
+    // İlk yükleme
+    useEffect(() => {
+        lastDocRef.current = null;
+        fetchProducts(true);
+    }, [fetchProducts]);
 
     // Client-side filter + sort
     const filtered = useCallback(() => {
@@ -231,7 +275,8 @@ function SearchContent() {
                     <p className="text-sm text-gray-500">
                         {loading ? 'Yükleniyor...' : (
                             <>
-                                <span className="font-bold text-gray-800">{products.length}</span> ilan bulundu
+                                <span className="font-bold text-gray-800">{products.length}</span> ilan
+                                {hasActiveFilters ? ' bulundu' : ` yüklendi${hasMore ? ' (daha fazlası var)' : ''}`}
                                 {searchText && <> · "<span className="font-medium">{searchText}</span>" araması için</>}
                                 {selectedCategory && <> · <span className="font-medium">{CATEGORIES.find(c => c.value === selectedCategory)?.label}</span> kategorisinde</>}
                             </>
@@ -288,9 +333,13 @@ function SearchContent() {
                                         className="block bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 h-full">
                                         <div className="h-44 bg-white flex items-center justify-center p-3 border-b border-gray-100 overflow-hidden relative">
                                             {product.image ? (
-                                                <img src={product.image} alt={product.title}
-                                                    className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500"
-                                                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png'; }} />
+                                                <NextImage
+                                                    src={product.image}
+                                                    alt={product.title}
+                                                    fill
+                                                    sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                                                    className="object-contain group-hover:scale-105 transition-transform duration-500 !p-3"
+                                                />
                                             ) : (
                                                 <div className="text-gray-300 text-4xl">📦</div>
                                             )}
@@ -317,6 +366,24 @@ function SearchContent() {
                                     </Link>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {/* Daha Fazla Göster — sadece filtre yokken ve daha ilan varsa */}
+                    {!loading && hasMore && !searchText && !selectedCategory && !minPrice && !maxPrice && (
+                        <div className="flex justify-center py-8">
+                            <button
+                                onClick={() => fetchProducts(false)}
+                                disabled={loadingMore}
+                                className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 font-semibold px-8 py-3 rounded-xl hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                            >
+                                {loadingMore ? (
+                                    <>
+                                        <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                        Yükleniyor...
+                                    </>
+                                ) : 'Daha Fazla Göster'}
+                            </button>
                         </div>
                     )}
                 </div>

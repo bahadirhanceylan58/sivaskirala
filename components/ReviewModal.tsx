@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { StarIcon as StarOutline } from '@heroicons/react/24/outline';
+import { toast } from 'sonner';
 
 interface ReviewModalProps {
     isOpen: boolean;
@@ -38,14 +39,14 @@ export default function ReviewModal({ isOpen, onClose, productId, productTitle, 
                 created_at: serverTimestamp()
             });
 
-            alert('Yorumunuz başarıyla gönderildi!');
+            toast.success('Yorumunuz başarıyla gönderildi!');
             setComment('');
             setRating(5);
             onReviewSubmitted();
             onClose();
         } catch (error) {
             console.error("Error submitting review:", error);
-            alert('Yorum gönderilirken bir hata oluştu.');
+            toast.error('Yorum gönderilirken bir hata oluştu.');
         } finally {
             setLoading(false);
         }

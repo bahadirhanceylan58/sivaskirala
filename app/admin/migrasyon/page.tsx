@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { getErrorMessage } from '@/lib/utils';
 import { WrenchScrewdriverIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 
 interface MigrationResult {
@@ -55,8 +56,8 @@ export default function AdminMigrationPage() {
                         });
                         addLog(`🧹 "${data.title || docSnap.id}": eski owner_id alanı temizlendi.`);
                         stats.updated++;
-                    } catch (e: any) {
-                        addLog(`❌ "${data.title || docSnap.id}": temizleme hatası — ${e.message}`);
+                    } catch (e) {
+                        addLog(`❌ "${data.title || docSnap.id}": temizleme hatası — ${getErrorMessage(e)}`);
                         stats.errors++;
                     }
                     continue;
@@ -70,8 +71,8 @@ export default function AdminMigrationPage() {
                     });
                     addLog(`✅ "${data.title || docSnap.id}": owner_id → ownerId taşındı.`);
                     stats.updated++;
-                } catch (e: any) {
-                    addLog(`❌ "${data.title || docSnap.id}": güncelleme hatası — ${e.message}`);
+                } catch (e) {
+                    addLog(`❌ "${data.title || docSnap.id}": güncelleme hatası — ${getErrorMessage(e)}`);
                     stats.errors++;
                 }
             }
@@ -80,8 +81,8 @@ export default function AdminMigrationPage() {
             addLog('');
             addLog(`🎉 Migrasyon tamamlandı: ${stats.updated} güncellendi, ${stats.skipped} atlandı, ${stats.errors} hata.`);
 
-        } catch (error: any) {
-            addLog(`🚨 Kritik hata: ${error.message}`);
+        } catch (error) {
+            addLog(`🚨 Kritik hata: ${getErrorMessage(error)}`);
         } finally {
             setRunning(false);
         }

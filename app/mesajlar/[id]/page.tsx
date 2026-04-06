@@ -45,7 +45,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                 else setCurrentUser(user);
             });
         };
-        let unsub: any;
+        let unsub: (() => void) | undefined;
         init().then(u => unsub = u);
         return () => unsub?.();
     }, [router]);
@@ -100,7 +100,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                 } as Message)));
             });
         };
-        let unsub: any;
+        let unsub: (() => void) | undefined;
         listen().then(u => unsub = u);
         return () => unsub?.();
     }, [id]);

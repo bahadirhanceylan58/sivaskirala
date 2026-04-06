@@ -20,7 +20,28 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const categoryName = slug.charAt(0).toUpperCase() + slug.slice(1);
+    // Slug → olası kategori değerleri (yeni slug + eski display name)
+    const CATEGORY_MAP: Record<string, string[]> = {
+        'elektronik':   ['elektronik', 'Elektronik'],
+        'organizasyon': ['organizasyon', 'Organizasyon & Düğün', 'Organizasyon'],
+        'ses-goruntu':  ['ses-goruntu', 'Ses & Görüntü', 'ses'],
+        'abiye-giyim':  ['abiye-giyim', 'Abiye & Giyim', 'giyim'],
+        'kamera':       ['kamera', 'Fotoğraf & Kamera'],
+        'kamp':         ['kamp', 'Kamp & Outdoor'],
+        'diger':        ['diger', 'Diğer'],
+    };
+
+    const CATEGORY_DISPLAY: Record<string, string> = {
+        'elektronik': 'Elektronik',
+        'organizasyon': 'Organizasyon & Düğün',
+        'ses-goruntu': 'Ses & Görüntü',
+        'abiye-giyim': 'Abiye & Giyim',
+        'kamera': 'Fotoğraf & Kamera',
+        'kamp': 'Kamp & Outdoor',
+        'diger': 'Diğer',
+    };
+
+    const categoryDisplayName = CATEGORY_DISPLAY[slug] || (slug.charAt(0).toUpperCase() + slug.slice(1));
 
     useEffect(() => {
         const fetchCategoryProducts = async () => {
@@ -29,17 +50,14 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
                 const { db } = await import('@/lib/firebase');
                 const { collection, getDocs, query, where } = await import('firebase/firestore');
 
-                let categoryFilter = slug === 'giyim' ? 'Abiye & Giyim' :
-                    slug === 'ses' ? 'Ses & Görüntü' :
-                        slug === 'kamp' ? 'Kamp & Outdoor' :
-                            slug === 'kamera' ? 'Fotoğraf & Kamera' :
-                                slug.charAt(0).toUpperCase() + slug.slice(1);
+                const searchValues = CATEGORY_MAP[slug] || [slug];
 
-                // Simple mapping fix for demo purposes, strictly speaking we should match exactly what's in DB
-                if (slug === 'elektronik') categoryFilter = 'Elektronik';
-                if (slug === 'organizasyon') categoryFilter = 'Organizasyon';
-
-                const q = query(collection(db, "products"), where("category", "==", categoryFilter));
+                // Firestore `in` operatörü max 30 değer destekler
+                const q = query(
+                    collection(db, "products"),
+                    where("status", "==", "active"),
+                    where("category", "in", searchValues)
+                );
                 const querySnapshot = await getDocs(q);
 
                 const items: Product[] = [];
@@ -85,7 +103,7 @@ export default function CategoryPage({ params }: { params: Promise<{ slug: strin
 
                     {/* Product Grid */}
                     <div className="flex-grow">
-                        <h1 className="text-2xl font-bold mb-6 text-gray-800">{categoryName} Kategorisi</h1>
+                        <h1 className="text-2xl font-bold mb-6 text-gray-800">{categoryDisplayName} Kategorisi</h1>
 
                         {loading ? (
                             <div className="text-center py-12 text-gray-500">Yükleniyor...</div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Link from 'next/link';
@@ -16,6 +16,7 @@ import {
     ShieldCheckIcon,
     PlusCircleIcon,
 } from '@heroicons/react/24/outline';
+import { toast } from 'sonner';
 
 type Tab = 'listings' | 'rentals' | 'favorites' | 'incoming' | 'messages';
 
@@ -126,7 +127,7 @@ export default function DashboardPage() {
         </div>
     );
 
-    const TABS: { id: Tab; label: string; icon: any; count?: number; badge?: boolean }[] = [
+    const TABS: { id: Tab; label: string; icon: ComponentType<{ className?: string }>; count?: number; badge?: boolean }[] = [
         { id: 'listings', label: 'İlanlarım', icon: ClipboardDocumentListIcon, count: myProducts.length },
         { id: 'incoming', label: 'Gelen Talepler', icon: InboxIcon, count: incomingRequests.length, badge: incomingRequests.filter(r => r.status === 'pending').length > 0 },
         { id: 'rentals', label: 'Kiraladıklarım', icon: ShoppingBagIcon, count: myRentals.length },
@@ -290,6 +291,7 @@ export default function DashboardPage() {
                                                         const { doc, updateDoc } = await import('firebase/firestore');
                                                         await updateDoc(doc(db, 'bookings', req.id), { status: 'approved' });
                                                         setIncomingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'approved' } : r));
+                                                        toast.success('Talep onaylandı!');
                                                     }} className="bg-primary text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors">
                                                         ✅ Onayla
                                                     </button>
@@ -298,6 +300,7 @@ export default function DashboardPage() {
                                                         const { doc, updateDoc } = await import('firebase/firestore');
                                                         await updateDoc(doc(db, 'bookings', req.id), { status: 'rejected' });
                                                         setIncomingRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'rejected' } : r));
+                                                        toast.error('Talep reddedildi.');
                                                     }} className="border border-red-200 text-red-500 px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-red-50 transition-colors">
                                                         ❌ Reddet
                                                     </button>
@@ -367,12 +370,12 @@ export default function DashboardPage() {
                             {myFavorites.map(fav => (
                                 <div key={fav.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all group relative">
                                     <button onClick={async () => {
-                                        if (!confirm('Favorilerden kaldırılsın mı?')) return;
                                         const { db } = await import('@/lib/firebase');
                                         const { doc, deleteDoc } = await import('firebase/firestore');
                                         await deleteDoc(doc(db, 'favorites', fav.id));
                                         setMyFavorites(prev => prev.filter(f => f.id !== fav.id));
-                                    }} className="absolute top-2 right-2 z-10 w-7 h-7 bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-white transition-colors shadow-sm">
+                                        toast.success('Favorilerden kaldırıldı.');
+                                    }} className="absolute top-2 right-2 z-10 w-7 h-7 bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-white transition-colors shadow-sm" title="Favorilerden kaldır">
                                         ✕
                                     </button>
                                     <Link href={`/ilan/${fav.productId}`} className="block">

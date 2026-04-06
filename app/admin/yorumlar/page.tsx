@@ -1,4 +1,6 @@
 'use client';
+import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/utils';
 
 import { useEffect, useState } from 'react';
 import { StarIcon } from '@heroicons/react/24/solid';
@@ -50,8 +52,8 @@ export default function AdminReviewsPage() {
             // Reviews stored at products/{productId}/reviews/{reviewId}
             await deleteDoc(doc(db, 'products', review.product_id, 'reviews', review.id));
             fetchReviews();
-        } catch (error: any) {
-            alert('Hata: ' + error.message);
+        } catch (error) {
+            toast.error('Hata: ' + getErrorMessage(error));
         }
     };
 

@@ -44,7 +44,7 @@ export default function CartPage() {
     const removeFromCart = (cartId: string) => {
         if (typeof window !== 'undefined') {
             const currentCart = JSON.parse(localStorage.getItem('sivas_cart') || '[]');
-            const newCart = currentCart.filter((item: any) => item.cartId !== cartId);
+            const newCart = (currentCart as CartItem[]).filter(item => item.cartId !== cartId);
             localStorage.setItem('sivas_cart', JSON.stringify(newCart));
             window.dispatchEvent(new Event('storage'));
             setCart(newCart);

@@ -40,7 +40,7 @@ export default function MesajlarPage() {
             });
             return unsub;
         };
-        let unsub: any;
+        let unsub: (() => void) | undefined;
         init().then(u => unsub = u);
         return () => unsub?.();
     }, [router]);
@@ -66,7 +66,7 @@ export default function MesajlarPage() {
 
             const convMap = new Map<string, Conversation>();
 
-            const processSnapshot = async (snapshot: any) => {
+            const processSnapshot = async (snapshot: { docs: { id: string; data: () => Record<string, unknown> }[] }) => {
                 for (const docSnap of snapshot.docs) {
                     const data = docSnap.data();
                     const isBuyer = data.buyerId === currentUser.uid;
@@ -99,7 +99,7 @@ export default function MesajlarPage() {
             return () => { unsubBuyer(); unsubSeller(); };
         };
 
-        let cleanup: any;
+        let cleanup: (() => void) | undefined;
         fetchConversations().then(c => cleanup = c);
         return () => cleanup?.();
     }, [currentUser]);

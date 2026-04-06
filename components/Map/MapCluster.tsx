@@ -37,8 +37,9 @@ function MapUpdater({ products }: { products: Product[] }) {
     const map = useMap();
 
     useEffect(() => {
-        if (products.length > 0) {
-            const bounds = L.latLngBounds(products.map(p => [p.lat || 39.7505, p.lng || 37.0150]));
+        const located = products.filter(p => p.lat && p.lng);
+        if (located.length > 0) {
+            const bounds = L.latLngBounds(located.map(p => [p.lat!, p.lng!]));
             map.fitBounds(bounds, { padding: [50, 50] });
         }
     }, [products, map]);
@@ -55,7 +56,8 @@ export default function MapCluster({ products }: MapClusterProps) {
 
     if (!isMounted) return <div className="h-full w-full bg-gray-100 flex items-center justify-center">Harita Yükleniyor...</div>;
 
-    // Sivas Center Coordinates
+    // Sadece koordinatı olan ürünler haritada gösterilir
+    const locatedProducts = products.filter(p => p.lat && p.lng);
     const center: [number, number] = [39.7505, 37.0150];
 
     return (
@@ -64,10 +66,10 @@ export default function MapCluster({ products }: MapClusterProps) {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            {products.map((product) => (
+            {locatedProducts.map((product) => (
                 <Marker
                     key={product.id}
-                    position={[product.lat || 39.7505 + (Math.random() - 0.5) * 0.1, product.lng || 37.0150 + (Math.random() - 0.5) * 0.1]}
+                    position={[product.lat!, product.lng!]}
                     icon={icon}
                 >
                     <Popup>
@@ -84,7 +86,10 @@ export default function MapCluster({ products }: MapClusterProps) {
                     </Popup>
                 </Marker>
             ))}
-            <MapUpdater products={products} />
+            {locatedProducts.length === 0 && (
+                <></>
+            )}
+            <MapUpdater products={locatedProducts} />
         </MapContainer>
     );
 }

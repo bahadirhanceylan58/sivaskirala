@@ -1,4 +1,6 @@
 'use client';
+import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/utils';
 
 import { useEffect, useState } from 'react';
 
@@ -108,8 +110,8 @@ export default function AdminProductsPage() {
                 }
             }
             fetchProducts();
-        } catch (error: any) {
-            alert('Hata: ' + error.message);
+        } catch (error) {
+            toast.error('Hata: ' + getErrorMessage(error));
         }
     };
 
@@ -120,8 +122,8 @@ export default function AdminProductsPage() {
             const { doc, deleteDoc } = await import('firebase/firestore');
             await deleteDoc(doc(db, 'products', id));
             fetchProducts();
-        } catch (error: any) {
-            alert('Hata: ' + error.message);
+        } catch (error) {
+            toast.error('Hata: ' + getErrorMessage(error));
         }
     };
 

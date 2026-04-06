@@ -38,7 +38,7 @@ const Navbar = () => {
                 const { onAuthStateChanged } = await import('firebase/auth');
                 const { doc, getDoc } = await import('firebase/firestore');
 
-                unsubscribe = onAuthStateChanged(auth, async (currentUser: any) => {
+                unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
                     if (currentUser) {
                         let fullName = currentUser.displayName || 'Kullanıcı';
 
@@ -77,7 +77,7 @@ const Navbar = () => {
     // Unread messages listener
     useEffect(() => {
         if (!user) { setUnreadMessages(0); return; }
-        let cleanup: any;
+        let cleanup: (() => void) | undefined;
         const listen = async () => {
             const { db } = await import('@/lib/firebase');
             const { collection, query, where, onSnapshot } = await import('firebase/firestore');
@@ -224,6 +224,12 @@ const Navbar = () => {
                                 type="text"
                                 placeholder="Ara..."
                                 className="w-full border border-gray-300 rounded-lg py-2 pl-3 pr-10 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        const val = (e.target as HTMLInputElement).value;
+                                        if (val) { setIsMobileMenuOpen(false); window.location.href = `/arama?q=${val}`; }
+                                    }
+                                }}
                             />
                             <MagnifyingGlassIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         </div>

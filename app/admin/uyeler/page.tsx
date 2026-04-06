@@ -1,4 +1,6 @@
 'use client';
+import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/utils';
 
 import { useEffect, useState } from 'react';
 
@@ -44,8 +46,8 @@ export default function AdminUsersPage() {
             const { doc, updateDoc } = await import('firebase/firestore');
             await updateDoc(doc(db, 'users', id), { is_blocked: !currentStatus });
             fetchUsers();
-        } catch (error: any) {
-            alert('Hata: ' + error.message);
+        } catch (error) {
+            toast.error('Hata: ' + getErrorMessage(error));
         }
     };
 
@@ -56,8 +58,8 @@ export default function AdminUsersPage() {
             const { doc, updateDoc } = await import('firebase/firestore');
             await updateDoc(doc(db, 'users', id), { role: 'admin' });
             fetchUsers();
-        } catch (error: any) {
-            alert('Hata: ' + error.message);
+        } catch (error) {
+            toast.error('Hata: ' + getErrorMessage(error));
         }
     };
 

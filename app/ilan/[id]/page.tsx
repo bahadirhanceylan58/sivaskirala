@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { toast } from "sonner";
 import { StarIcon, HeartIcon, ShareIcon, PhoneIcon, ChatBubbleLeftIcon, ShieldCheckIcon, MapPinIcon, CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartOutlineIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
@@ -20,10 +21,16 @@ interface Product {
     title: string;
     description: string;
     price: number;
+    deposit?: number;
     category: string;
     image: string;
     images?: string[];
     features?: string[];
+    sizes?: string[];
+    colors?: string[];
+    condition?: string;
+    deliveryMethod?: string;
+    minRental?: number;
     ownerId: string;
     lat?: number;
     lng?: number;
@@ -56,6 +63,13 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     const [totalPrice, setTotalPrice] = useState(0);
     const [days, setDays] = useState(1);
 
+    // Dolu tarih aralıkları
+    const [bookedRanges, setBookedRanges] = useState<{ start: string; end: string }[]>([]);
+
+    // Yorum ortalaması
+    const [avgRating, setAvgRating] = useState(0);
+    const [reviewCount, setReviewCount] = useState(0);
+
     // Review state
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [isFavorite, setIsFavorite] = useState(false);
@@ -68,7 +82,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             const { onAuthStateChanged } = await import('firebase/auth');
             return onAuthStateChanged(auth, (user) => setCurrentUser(user));
         };
-        let unsub: any;
+        let unsub: (() => void) | undefined;
         initAuth().then(u => unsub = u);
         return () => unsub?.();
     }, []);
@@ -88,6 +102,20 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     const prod = { id: docSnap.id, ...pData } as Product;
                     setProduct(prod);
                     setTotalPrice(pData.price);
+
+                    // Onaylı/bekleyen rezervasyonları çek
+                    try {
+                        const bookQ = query(
+                            collection(db, 'bookings'),
+                            where('productId', '==', docSnap.id),
+                            where('status', 'in', ['pending', 'approved'])
+                        );
+                        const bookSnap = await getDocs(bookQ);
+                        setBookedRanges(bookSnap.docs.map(d => ({
+                            start: d.data().startDate,
+                            end: d.data().endDate,
+                        })));
+                    } catch (e) { /* devam */ }
 
                     // Fetch seller info
                     if (pData.ownerId) {
@@ -135,6 +163,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         checkFav();
     }, [currentUser, id]);
 
+    // Seçilen tarih aralığının dolu olup olmadığını kontrol et
+    const isDateRangeBooked = (start: string, end: string) => {
+        if (!start || !end) return false;
+        const s = new Date(start).getTime();
+        const e = new Date(end).getTime();
+        return bookedRanges.some(r => s <= new Date(r.end).getTime() && e >= new Date(r.start).getTime());
+    };
+
     // Recalculate total
     useEffect(() => {
         if (product && startDate && endDate) {
@@ -148,7 +184,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     }, [startDate, endDate, product]);
 
     const toggleFavorite = async () => {
-        if (!currentUser) { alert('Favorilere eklemek için giriş yapın.'); return; }
+        if (!currentUser) { toast.error('Favorilere eklemek için giriş yapın.'); return; }
         setFavLoading(true);
         try {
             const { db } = await import('@/lib/firebase');
@@ -172,7 +208,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     };
 
     const handleAddToCart = () => {
-        if (!startDate || !endDate) { alert('Lütfen kiralama tarih aralığını seçiniz.'); return; }
+        if (!startDate || !endDate) { toast.error('Lütfen kiralama tarih aralığını seçiniz.'); return; }
         const cart = JSON.parse(localStorage.getItem('sivas_cart') || '[]');
         cart.push({
             cartId: `${product!.id}_${Date.now()}`,
@@ -272,7 +308,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                         {isFavorite ? <HeartIcon className="h-5 w-5" /> : <HeartOutlineIcon className="h-5 w-5" />}
                                     </button>
                                     <button
-                                        onClick={() => navigator.clipboard.writeText(window.location.href).then(() => alert('Link kopyalandı!'))}
+                                        onClick={() => navigator.clipboard.writeText(window.location.href).then(() => toast.success('Link kopyalandı!'))}
                                         className="p-2.5 rounded-full bg-white/90 backdrop-blur shadow-md text-gray-500 hover:text-primary transition-colors"
                                     >
                                         <ShareIcon className="h-5 w-5" />
@@ -305,12 +341,61 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 <span className="bg-green-50 text-primary text-sm font-bold px-3 py-1 rounded-full">{product.category}</span>
                                 <div className="flex items-center gap-1">
                                     {[1, 2, 3, 4, 5].map(s => (
-                                        <StarIcon key={s} className={`h-4 w-4 ${s <= 3 ? 'text-yellow-400' : 'text-gray-200'}`} />
+                                        <StarIcon key={s} className={`h-4 w-4 ${s <= Math.round(avgRating) ? 'text-yellow-400' : 'text-gray-200'}`} />
                                     ))}
-                                    <span className="text-sm text-gray-500 ml-1">Yeni İlan</span>
+                                    <span className="text-sm text-gray-500 ml-1">
+                                        {reviewCount > 0 ? `${avgRating.toFixed(1)} (${reviewCount} yorum)` : 'Henüz yorum yok'}
+                                    </span>
                                 </div>
                             </div>
                             <p className="text-gray-600 leading-relaxed text-base">{product.description}</p>
+
+                            {/* Ürün meta bilgileri */}
+                            <div className="mt-6 pt-6 border-t border-gray-100 flex flex-wrap gap-2">
+                                {product.condition && (
+                                    <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                                        product.condition === 'new' ? 'bg-green-50 text-green-700 border-green-200' :
+                                        product.condition === 'good' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                        'bg-gray-50 text-gray-700 border-gray-200'
+                                    }`}>
+                                        🏷️ {product.condition === 'new' ? 'Sıfır Gibi' : product.condition === 'good' ? 'İyi Durumda' : 'Orta Durumda'}
+                                    </span>
+                                )}
+                                {product.deliveryMethod && (
+                                    <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                        🚚 {product.deliveryMethod === 'in-person' ? 'Elden Teslim' : product.deliveryMethod === 'cargo' ? 'Kargo ile' : 'Elden veya Kargo'}
+                                    </span>
+                                )}
+                                {product.minRental && product.minRental > 1 && (
+                                    <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                        📅 Min. {product.minRental === 7 ? 'Haftalık' : `${product.minRental} Gün`}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Bedenler (giyim) */}
+                            {product.sizes && product.sizes.length > 0 && (
+                                <div className="mt-6 pt-6 border-t border-gray-100">
+                                    <h3 className="font-bold text-gray-900 mb-3">Mevcut Bedenler</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {product.sizes.map((s, i) => (
+                                            <span key={i} className="px-3 py-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 text-sm font-medium">{s}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Renkler (giyim) */}
+                            {product.colors && product.colors.length > 0 && (
+                                <div className="mt-4">
+                                    <h3 className="font-bold text-gray-900 mb-3">Renkler</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {product.colors.map((c, i) => (
+                                            <span key={i} className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 text-sm">{c}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {product.features && product.features.length > 0 && (
                                 <div className="mt-6 pt-6 border-t border-gray-100">
@@ -340,7 +425,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                     </button>
                                 )}
                             </div>
-                            <ReviewList productId={product.id} />
+                            <ReviewList
+                                productId={product.id}
+                                onRatingLoaded={(avg, count) => { setAvgRating(avg); setReviewCount(count); }}
+                            />
                         </div>
 
                         {/* Location Map */}
@@ -378,7 +466,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 </div>
                                 <div className="text-right">
                                     <span className="text-xs text-gray-400">Depozito</span>
-                                    <p className="font-bold text-gray-700">{(product.price * 5).toLocaleString('tr-TR')} ₺</p>
+                                    <p className="font-bold text-gray-700">{(product.deposit ?? product.price * 5).toLocaleString('tr-TR')} ₺</p>
                                 </div>
                             </div>
 
@@ -418,7 +506,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 </div>
                                 <div className="flex justify-between text-sm text-gray-600">
                                     <span>Depozito (iade edilir)</span>
-                                    <span>{(product.price * 5).toLocaleString('tr-TR')} ₺</span>
+                                    <span>{(product.deposit ?? product.price * 5).toLocaleString('tr-TR')} ₺</span>
                                 </div>
                                 <div className="border-t border-gray-200 pt-2 flex justify-between font-bold text-gray-900">
                                     <span>Toplam Tutar</span>
@@ -426,9 +514,21 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 </div>
                             </div>
 
+                            {startDate && endDate && isDateRangeBooked(startDate, endDate) && (
+                                <div className="mb-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                                    ⛔ Seçilen tarihler dolu. Lütfen farklı tarih seçin.
+                                </div>
+                            )}
+                            {product.minRental && product.minRental > 1 && days < product.minRental && startDate && endDate && (
+                                <div className="mb-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3">
+                                    ⚠️ Bu ilan en az {product.minRental === 7 ? '1 haftalık' : `${product.minRental} günlük`} kiralamaya açık.
+                                </div>
+                            )}
+
                             <button
                                 onClick={handleAddToCart}
-                                className="w-full bg-primary text-white py-4 rounded-xl font-black text-base hover:bg-green-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-green-200 mb-3"
+                                disabled={!!(startDate && endDate && isDateRangeBooked(startDate, endDate))}
+                                className="w-full bg-primary text-white py-4 rounded-xl font-black text-base hover:bg-green-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-green-200 mb-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             >
                                 🛒  Kiralamayı Başlat
                             </button>
@@ -493,7 +593,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                     </a>
                                 )}
                                 <button
-                                    onClick={() => window.open(`https://wa.me/?text=Merhaba, "${product.title}" ilanınız hakkında bilgi almak istiyorum.`, '_blank')}
+                                    onClick={() => {
+                                        const phone = seller?.phone?.replace(/\D/g, '').replace(/^0/, '90') || '';
+                                        const text = encodeURIComponent(`Merhaba, "${product.title}" ilanınız hakkında bilgi almak istiyorum.`);
+                                        window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+                                    }}
                                     className="flex items-center justify-center gap-2 w-full bg-green-500 text-white py-3 rounded-xl font-bold hover:bg-green-600 transition-colors shadow-sm shadow-green-100">
                                     <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /><path d="M12 0C5.373 0 0 5.373 0 12c0 2.027.507 3.934 1.397 5.61L.047 23.955l6.545-1.328A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.787 9.787 0 01-5.126-1.446l-.368-.218-3.813.774.8-3.72-.242-.38A9.77 9.77 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182S21.818 6.578 21.818 12 17.422 21.818 12 21.818z" /></svg>
                                     WhatsApp ile Yaz
@@ -501,7 +605,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 <button
                                     onClick={async () => {
                                         if (!currentUser) { window.location.href = '/giris-yap'; return; }
-                                        if (currentUser.uid === product?.ownerId) { alert('Kendi ilanınıza mesaj gönderemezsiniz.'); return; }
+                                        if (currentUser.uid === product?.ownerId) { toast.error('Kendi ilanınıza mesaj gönderemezsiniz.'); return; }
                                         try {
                                             const { db } = await import('@/lib/firebase');
                                             const { collection, query, where, getDocs, addDoc, serverTimestamp } = await import('firebase/firestore');
@@ -531,7 +635,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                                 convId = newConv.id;
                                             }
                                             window.location.href = `/mesajlar/${convId}`;
-                                        } catch (e) { console.error(e); alert('Bir hata oluştu.'); }
+                                        } catch (e) { console.error(e); toast.error('Bir hata oluştu.'); }
                                     }}
                                     className="flex items-center justify-center gap-2 w-full border border-gray-200 text-gray-600 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors text-sm">
                                     <ChatBubbleLeftIcon className="h-4 w-4" />

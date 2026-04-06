@@ -10,7 +10,7 @@ interface Notification {
     message: string;
     type: 'order' | 'system' | 'info';
     read: boolean;
-    created_at: any;
+    created_at: string;
     link?: string;
 }
 
@@ -34,7 +34,7 @@ export default function NotificationDropdown() {
     }, []);
 
     useEffect(() => {
-        let unsubscribe: any;
+        let unsubscribe: (() => void) | undefined;
 
         const fetchNotifications = async () => {
             const { auth, db } = await import('@/lib/firebase');

@@ -5,6 +5,8 @@ import Footer from "@/components/Footer";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckCircleIcon, ShieldCheckIcon, CalendarDaysIcon, PhoneIcon, UserIcon } from "@heroicons/react/24/solid";
+import { toast } from "sonner";
+import { getErrorMessage } from '@/lib/utils';
 
 interface CartItem {
     cartId: string;
@@ -35,6 +37,18 @@ export default function CheckoutPage() {
             return;
         }
         setCart(cartData);
+
+        // Giriş kontrolü
+        const checkAuth = async () => {
+            const { auth } = await import('@/lib/firebase');
+            const { onAuthStateChanged } = await import('firebase/auth');
+            onAuthStateChanged(auth, (user) => {
+                if (!user) {
+                    window.location.href = '/giris-yap?redirect=/checkout';
+                }
+            });
+        };
+        checkAuth();
     }, []);
 
     const calculateTotal = () => cart.reduce((t, i) => t + i.price * i.duration, 0);
@@ -42,7 +56,7 @@ export default function CheckoutPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!firstName.trim() || !lastName.trim() || !phone.trim()) {
-            alert('Lütfen tüm zorunlu alanları doldurunuz.');
+            toast.error('Lütfen tüm zorunlu alanları doldurunuz.');
             return;
         }
 
@@ -50,8 +64,32 @@ export default function CheckoutPage() {
 
         try {
             const { auth, db } = await import('@/lib/firebase');
-            const { collection, addDoc } = await import('firebase/firestore');
+            const { collection, addDoc, getDocs, query, where } = await import('firebase/firestore');
             const currentUser = auth.currentUser;
+
+            // Tarih çakışması kontrolü
+            for (const item of cart) {
+                const existingSnap = await getDocs(
+                    query(
+                        collection(db, 'bookings'),
+                        where('productId', '==', item.id),
+                        where('status', 'in', ['pending', 'approved'])
+                    )
+                );
+                const newStart = new Date(item.startDate).getTime();
+                const newEnd = new Date(item.endDate).getTime();
+                const conflict = existingSnap.docs.some(d => {
+                    const b = d.data();
+                    const bStart = new Date(b.startDate).getTime();
+                    const bEnd = new Date(b.endDate).getTime();
+                    return newStart <= bEnd && newEnd >= bStart;
+                });
+                if (conflict) {
+                    toast.error(`"${item.title}" ürünü seçilen tarihler için dolu. Lütfen farklı tarih seçin.`);
+                    setStep('form');
+                    return;
+                }
+            }
 
             for (const item of cart) {
                 await addDoc(collection(db, 'bookings'), {
@@ -90,9 +128,9 @@ export default function CheckoutPage() {
             window.dispatchEvent(new Event('storage'));
             setStep('success');
 
-        } catch (error: any) {
+        } catch (error) {
             console.error('Rezervasyon hatası:', error);
-            alert('Bir hata oluştu: ' + (error?.message || 'Lütfen tekrar deneyin.'));
+            toast.error('Bir hata oluştu: ' + getErrorMessage(error));
             setStep('form');
         }
     };

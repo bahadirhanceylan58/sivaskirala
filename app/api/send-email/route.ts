@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/utils';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = 'Sivas Kirala <bildirim@sivaskirala.vercel.app>';
@@ -40,8 +41,9 @@ export async function POST(req: NextRequest) {
 
         const data = await res.json();
         return NextResponse.json({ ok: true, id: data.id });
-    } catch (error: any) {
-        console.error('[Email] Sunucu hatası:', error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        const msg = getErrorMessage(error);
+        console.error('[Email] Sunucu hatası:', msg);
+        return NextResponse.json({ error: msg }, { status: 500 });
     }
 }

@@ -92,7 +92,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const q = query(collection(db, 'products'), where('status', '==', 'pending'));
             return onSnapshot(q, (snap) => setPendingCount(snap.size));
         };
-        let unsub: any;
+        let unsub: (() => void) | undefined;
         listen().then(u => unsub = u);
         return () => unsub?.();
     }, [isAdmin]);

@@ -8,14 +8,15 @@ interface Review {
     userName: string;
     rating: number;
     comment: string;
-    created_at: any;
+    created_at: string;
 }
 
 interface ReviewListProps {
     productId: string;
+    onRatingLoaded?: (avg: number, count: number) => void;
 }
 
-export default function ReviewList({ productId }: ReviewListProps) {
+export default function ReviewList({ productId, onRatingLoaded }: ReviewListProps) {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -38,6 +39,13 @@ export default function ReviewList({ productId }: ReviewListProps) {
                 });
 
                 setReviews(reviewsData);
+
+                if (onRatingLoaded) {
+                    const avg = reviewsData.length > 0
+                        ? reviewsData.reduce((acc, r) => acc + r.rating, 0) / reviewsData.length
+                        : 0;
+                    onRatingLoaded(avg, reviewsData.length);
+                }
             } catch (error) {
                 console.error("Error fetching reviews:", error);
             } finally {

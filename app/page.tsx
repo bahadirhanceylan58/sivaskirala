@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import Hero from "@/components/Hero";
 import FavoriteButton from "@/components/FavoriteButton";
+import NextImage from "next/image";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, orderBy, query, limit, where } from "firebase/firestore";
 import {
@@ -146,11 +147,12 @@ export default function Home() {
                         {/* Image area — white bg, object-contain like kiralabunu */}
                         <div className="h-48 bg-white flex items-center justify-center p-4 relative overflow-hidden border-b border-gray-100">
                           {item.image ? (
-                            <img
+                            <NextImage
                               src={item.image}
                               alt={item.title}
-                              className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500"
-                              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png'; }}
+                              fill
+                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+                              className="object-contain group-hover:scale-105 transition-transform duration-500 !p-4"
                             />
                           ) : (
                             <div className="text-gray-300 text-4xl">📦</div>

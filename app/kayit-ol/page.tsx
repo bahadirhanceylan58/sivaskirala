@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { toast } from 'sonner';
 
 
 export default function RegisterPage() {
@@ -41,21 +42,21 @@ export default function RegisterPage() {
                 created_at: new Date().toISOString()
             });
 
-            alert('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz.');
+            toast.success('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz.');
             window.location.href = '/giris-yap';
 
-        } catch (err: any) {
+        } catch (err) {
             console.error('Register error:', err);
-            // Firebase error codes
-            let message = err.message;
-            if (err.code === 'auth/email-already-in-use') {
-                message = 'Bu e-posta adresi zaten kullanımda.';
-            } else if (err.code === 'auth/weak-password') {
-                message = 'Şifre çok zayıf (en az 6 karakter).';
-            } else if (err.code === 'auth/invalid-email') {
-                message = 'Geçersiz e-posta adresi.';
+            const { code, message } = err as { code?: string; message?: string };
+            let msg = message || 'Bir hata oluştu.';
+            if (code === 'auth/email-already-in-use') {
+                msg = 'Bu e-posta adresi zaten kullanımda.';
+            } else if (code === 'auth/weak-password') {
+                msg = 'Şifre çok zayıf (en az 6 karakter).';
+            } else if (code === 'auth/invalid-email') {
+                msg = 'Geçersiz e-posta adresi.';
             }
-            setError(message);
+            setError(msg);
         } finally {
             setLoading(false);
         }

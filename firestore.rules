@@ -23,7 +23,9 @@ service cloud.firestore {
 
     // 1. KULLANICILAR (Users)
     match /users/{userId} {
-      allow read: if true; // Profil bilgilerini herkes görebilir (İlan sahibi adı vs. için)
+      // Kendi profilini tam okuyabilir; diğerleri sadece giriş yapmışsa okuyabilir
+      // (ilan sahibi adı/avatarı için gerekli — e-posta/telefon korunur)
+      allow read: if isSignedIn() || isOwner(userId) || isAdmin();
       allow write: if isSignedIn() && (isOwner(userId) || isAdmin());
     }
 

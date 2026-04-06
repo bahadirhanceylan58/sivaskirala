@@ -1,4 +1,6 @@
 'use client';
+import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/utils';
 
 import { useEffect, useState } from 'react';
 
@@ -54,8 +56,8 @@ export default function AdminBookingsPage() {
             const { doc, updateDoc } = await import('firebase/firestore');
             await updateDoc(doc(db, 'bookings', id), { status: newStatus });
             fetchBookings();
-        } catch (error: any) {
-            alert('Hata: ' + error.message);
+        } catch (error) {
+            toast.error('Hata: ' + getErrorMessage(error));
         }
     };
 
