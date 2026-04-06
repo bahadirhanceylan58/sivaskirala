@@ -21,9 +21,9 @@ interface Product {
     id: string;
     title: string;
     price: number;
-    image: string;
+    image?: string;
     category: string;
-    description: string;
+    description?: string;
     lat?: number;
     lng?: number;
 }

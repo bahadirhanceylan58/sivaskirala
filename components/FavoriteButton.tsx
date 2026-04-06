@@ -10,7 +10,7 @@ interface FavoriteButtonProps {
     productData: {
         title: string;
         price: number;
-        image: string;
+        image?: string;
         category: string;
     };
     className?: string; // Allow custom styling positioning

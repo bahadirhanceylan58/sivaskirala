@@ -10,7 +10,7 @@ interface Notification {
     message: string;
     type: 'order' | 'system' | 'info';
     read: boolean;
-    created_at: string;
+    created_at: any;
     link?: string;
 }
 

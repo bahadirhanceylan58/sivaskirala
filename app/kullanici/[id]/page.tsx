@@ -53,7 +53,7 @@ export default function SellerProfilePage({ params }: { params: Promise<{ id: st
                 const listingsSnap = await getDocs(
                     query(collection(db, 'products'), where('ownerId', '==', id), where('status', '==', 'active'))
                 );
-                const products = listingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const products = listingsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as { id: string; title: string; price: number; image?: string; category: string }[];
                 setListings(products);
 
                 // Fetch reviews for seller's products

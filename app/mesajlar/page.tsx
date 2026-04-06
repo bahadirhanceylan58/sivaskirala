@@ -70,7 +70,7 @@ export default function MesajlarPage() {
                 for (const docSnap of snapshot.docs) {
                     const data = docSnap.data();
                     const isBuyer = data.buyerId === currentUser.uid;
-                    const otherId = isBuyer ? data.sellerId : data.buyerId;
+                    const otherId = (isBuyer ? data.sellerId : data.buyerId) as string;
 
                     let otherName = 'Kullanıcı';
                     try {
@@ -84,7 +84,7 @@ export default function MesajlarPage() {
                         id: docSnap.id,
                         ...data,
                         otherUserName: otherName,
-                        lastMessageAt: data.lastMessageAt?.toDate?.()?.toISOString() || '',
+                        lastMessageAt: (data.lastMessageAt as any)?.toDate?.()?.toISOString() || '',
                     } as Conversation);
                 }
                 const sorted = Array.from(convMap.values()).sort(

@@ -8,7 +8,7 @@ interface Review {
     userName: string;
     rating: number;
     comment: string;
-    created_at: string;
+    created_at: any;
 }
 
 interface ReviewListProps {
