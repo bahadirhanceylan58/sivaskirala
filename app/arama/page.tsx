@@ -23,6 +23,7 @@ interface Product {
     lat?: number;
     lng?: number;
     description?: string;
+    created_at?: any;
 }
 
 const MapCluster = dynamic(() => import('@/components/Map/MapCluster'), {
