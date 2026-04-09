@@ -86,15 +86,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Live pending listings count
     useEffect(() => {
         if (!isAdmin) return;
+        let unsub: (() => void) | undefined;
+        let cancelled = false;
+
         const listen = async () => {
             const { db } = await import('@/lib/firebase');
             const { collection, query, where, onSnapshot } = await import('firebase/firestore');
             const q = query(collection(db, 'products'), where('status', '==', 'pending'));
-            return onSnapshot(q, (snap) => setPendingCount(snap.size));
+            const unsubFn = onSnapshot(
+                q,
+                (snap) => { if (!cancelled) setPendingCount(snap.size); },
+                (err) => console.warn('[Admin] Pending count listener error:', err.code)
+            );
+            if (cancelled) { unsubFn(); return; }
+            unsub = unsubFn;
         };
-        let unsub: (() => void) | undefined;
-        listen().then(u => unsub = u);
-        return () => unsub?.();
+
+        listen();
+        return () => { cancelled = true; unsub?.(); };
     }, [isAdmin]);
 
     const handleSignOut = async () => {

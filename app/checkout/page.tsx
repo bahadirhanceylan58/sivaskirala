@@ -64,8 +64,38 @@ export default function CheckoutPage() {
 
         try {
             const { auth, db } = await import('@/lib/firebase');
-            const { collection, addDoc, getDocs, query, where } = await import('firebase/firestore');
+            const { collection, addDoc, getDocs, query, where, doc, getDoc } = await import('firebase/firestore');
             const currentUser = auth.currentUser;
+
+            // Auth durumu kontrolü — currentUser null ise oturumu yenilet
+            if (!currentUser) {
+                toast.error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
+                window.location.href = '/giris-yap?redirect=/checkout';
+                return;
+            }
+
+            // Tarih validasyonu
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            for (const item of cart) {
+                if (!item.startDate || !item.endDate) {
+                    toast.error(`"${item.title}" için tarih seçilmemiş.`);
+                    setStep('form');
+                    return;
+                }
+                const newStart = new Date(item.startDate);
+                const newEnd = new Date(item.endDate);
+                if (newStart < today) {
+                    toast.error(`"${item.title}" için geçmiş tarih seçilemez.`);
+                    setStep('form');
+                    return;
+                }
+                if (newStart >= newEnd) {
+                    toast.error(`"${item.title}" için başlangıç tarihi bitiş tarihinden önce olmalıdır.`);
+                    setStep('form');
+                    return;
+                }
+            }
 
             // Tarih çakışması kontrolü
             for (const item of cart) {
@@ -96,8 +126,8 @@ export default function CheckoutPage() {
                     productId: item.id,
                     productTitle: item.title,
                     productImage: item.image,
-                    renterId: currentUser?.uid || null,
-                    renterEmail: currentUser?.email || null,
+                    renterId: currentUser.uid,
+                    renterEmail: currentUser.email || null,
                     renterFirstName: firstName.trim(),
                     renterLastName: lastName.trim(),
                     renterPhone: phone.trim(),
@@ -121,6 +151,29 @@ export default function CheckoutPage() {
                         created_at: new Date().toISOString(),
                         link: '/hesabim'
                     });
+
+                    // E-posta bildirimi — ilan sahibine
+                    try {
+                        const ownerSnap = await getDoc(doc(db, 'users', item.ownerId));
+                        const ownerEmail = ownerSnap.exists() ? ownerSnap.data().email : null;
+                        if (ownerEmail) {
+                            const { emailTemplates } = await import('@/lib/email-templates');
+                            const tpl = emailTemplates.bookingRequest(
+                                `${firstName} ${lastName}`,
+                                item.title,
+                                new Date(item.startDate).toLocaleDateString('tr-TR'),
+                                new Date(item.endDate).toLocaleDateString('tr-TR'),
+                                item.price * item.duration
+                            );
+                            await fetch('/api/send-email', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ to: ownerEmail, ...tpl }),
+                            });
+                        }
+                    } catch (emailErr) {
+                        console.warn('Rezervasyon e-postası gönderilemedi:', emailErr);
+                    }
                 }
             }
 

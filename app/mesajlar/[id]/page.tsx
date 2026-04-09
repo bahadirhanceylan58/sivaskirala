@@ -32,6 +32,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [otherUserName, setOtherUserName] = useState('Kullanıcı');
+    const [otherUserEmail, setOtherUserEmail] = useState('');
     const [sending, setSending] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -73,7 +74,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             const otherId = data.buyerId === currentUser.uid ? data.sellerId : data.buyerId;
             try {
                 const userDoc = await getDoc(doc(db, 'users', otherId));
-                if (userDoc.exists()) setOtherUserName(userDoc.data().full_name || 'Kullanıcı');
+                if (userDoc.exists()) {
+                    setOtherUserName(userDoc.data().full_name || 'Kullanıcı');
+                    setOtherUserEmail(userDoc.data().email || '');
+                }
             } catch (_) { }
 
             // Okunmamış sıfırla
@@ -131,6 +135,22 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                 lastMessageAt: serverTimestamp(),
                 [isBuyer ? 'unreadSeller' : 'unreadBuyer']: increment(1),
             });
+
+            // E-posta bildirimi — karşı tarafa
+            if (otherUserEmail) {
+                try {
+                    const senderName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Biri';
+                    const { emailTemplates } = await import('@/lib/email-templates');
+                    const tpl = emailTemplates.newMessage(senderName, conversation.productTitle, id);
+                    await fetch('/api/send-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ to: otherUserEmail, ...tpl }),
+                    });
+                } catch (emailErr) {
+                    console.warn('Mesaj e-postası gönderilemedi:', emailErr);
+                }
+            }
         } catch (e) { console.error(e); }
         finally { setSending(false); }
     };

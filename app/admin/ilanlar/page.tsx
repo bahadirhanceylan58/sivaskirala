@@ -1,6 +1,7 @@
 'use client';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/utils';
+import Link from 'next/link';
 
 import { useEffect, useState } from 'react';
 
@@ -220,6 +221,12 @@ export default function AdminProductsPage() {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2 flex-wrap">
+                                                    <Link
+                                                        href={`/ilan-duzenle/${product.id}`}
+                                                        className="text-xs px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 transition-colors"
+                                                    >
+                                                        Düzenle
+                                                    </Link>
                                                     {product.status !== 'active' && (
                                                         <button
                                                             onClick={() => updateStatus(product.id, 'active')}

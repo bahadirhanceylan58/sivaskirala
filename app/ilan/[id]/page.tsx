@@ -99,6 +99,19 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
                 if (docSnap.exists()) {
                     const pData = docSnap.data();
+
+                    // Aktif olmayan ilanları yalnızca sahip veya admin görebilir.
+                    // currentUser henüz yüklenmemiş olabilir; bu yüzden auth'u burada tekrar kontrol et.
+                    if (pData.status !== 'active') {
+                        const { auth } = await import('@/lib/firebase');
+                        const viewer = auth.currentUser;
+                        const isOwner = viewer?.uid === pData.ownerId;
+                        if (!isOwner) {
+                            setLoading(false);
+                            return; // product null kalır → 404 görünümü render eder
+                        }
+                    }
+
                     const prod = { id: docSnap.id, ...pData } as Product;
                     setProduct(prod);
                     setTotalPrice(pData.price);
@@ -278,11 +291,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                         {/* Image Gallery */}
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                             {/* Main Image */}
-                            <div className="relative bg-gray-100 h-[420px] group">
+                            <div className="relative bg-white h-[300px] sm:h-[420px] group">
                                 <img
                                     src={allImages[activeImage] || '/placeholder-product.png'}
                                     alt={product.title}
-                                    className="w-full h-full object-cover transition-all duration-500"
+                                    className="w-full h-full object-contain transition-all duration-500 p-2"
                                     onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png'; }}
                                 />
                                 {/* Prev/Next arrows for multiple images */}

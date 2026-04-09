@@ -1,5 +1,15 @@
 const BASE_URL = 'https://sivaskirala.vercel.app';
 
+// Kullanıcı girdilerini HTML'e güvenli şekilde gömmek için escape fonksiyonu
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}
+
 const wrapper = (content: string) => `
 <!DOCTYPE html>
 <html lang="tr">
@@ -35,42 +45,42 @@ const btn = (text: string, url: string) =>
 
 export const emailTemplates = {
     listingApproved: (productTitle: string, productId: string) => ({
-        subject: `✅ İlanınız Onaylandı: ${productTitle}`,
+        subject: `✅ İlanınız Onaylandı: ${escapeHtml(productTitle)}`,
         html: wrapper(`
       <h2 style="margin:0 0 12px;color:#111;font-size:22px;">İlanınız yayında! 🎉</h2>
-      <p style="color:#475569;line-height:1.6;">"<strong>${productTitle}</strong>" ilanınız admin onayından geçti ve artık Sivas Kirala'da yayında.</p>
+      <p style="color:#475569;line-height:1.6;">"<strong>${escapeHtml(productTitle)}</strong>" ilanınız admin onayından geçti ve artık Sivas Kirala'da yayında.</p>
       <p style="color:#475569;line-height:1.6;">Kiracılar artık ilanınızı görebilir ve kiralama talebinde bulunabilir.</p>
-      ${btn('İlanımı Görüntüle', `${BASE_URL}/ilan/${productId}`)}
+      ${btn('İlanımı Görüntüle', `${BASE_URL}/ilan/${encodeURIComponent(productId)}`)}
     `),
     }),
 
     listingRejected: (productTitle: string) => ({
-        subject: `⛔ İlanınız Reddedildi: ${productTitle}`,
+        subject: `⛔ İlanınız Reddedildi: ${escapeHtml(productTitle)}`,
         html: wrapper(`
       <h2 style="margin:0 0 12px;color:#111;font-size:22px;">İlanınız onaylanmadı</h2>
-      <p style="color:#475569;line-height:1.6;">"<strong>${productTitle}</strong>" ilanınız platform kurallarına uygun olmadığı için yayına alınamadı.</p>
+      <p style="color:#475569;line-height:1.6;">"<strong>${escapeHtml(productTitle)}</strong>" ilanınız platform kurallarına uygun olmadığı için yayına alınamadı.</p>
       <p style="color:#475569;line-height:1.6;">İlanınızı düzenleyerek tekrar gönderebilirsiniz. Sorularınız için bize ulaşın.</p>
       ${btn('Hesabıma Git', `${BASE_URL}/hesabim`)}
     `),
     }),
 
     newMessage: (senderName: string, productTitle: string, convId: string) => ({
-        subject: `💬 Yeni Mesaj: ${productTitle}`,
+        subject: `💬 Yeni Mesaj: ${escapeHtml(productTitle)}`,
         html: wrapper(`
       <h2 style="margin:0 0 12px;color:#111;font-size:22px;">Yeni bir mesajınız var</h2>
-      <p style="color:#475569;line-height:1.6;"><strong>${senderName}</strong>, "<strong>${productTitle}</strong>" ilanınız hakkında size mesaj gönderdi.</p>
+      <p style="color:#475569;line-height:1.6;"><strong>${escapeHtml(senderName)}</strong>, "<strong>${escapeHtml(productTitle)}</strong>" ilanınız hakkında size mesaj gönderdi.</p>
       <p style="color:#475569;line-height:1.6;">Hızlı yanıt vererek kiralama şansınızı artırın!</p>
-      ${btn('Mesajı Gör', `${BASE_URL}/mesajlar/${convId}`)}
+      ${btn('Mesajı Gör', `${BASE_URL}/mesajlar/${encodeURIComponent(convId)}`)}
     `),
     }),
 
     bookingRequest: (renterName: string, productTitle: string, startDate: string, endDate: string, totalPrice: number) => ({
-        subject: `📅 Kiralama Talebi: ${productTitle}`,
+        subject: `📅 Kiralama Talebi: ${escapeHtml(productTitle)}`,
         html: wrapper(`
       <h2 style="margin:0 0 12px;color:#111;font-size:22px;">Yeni kiralama talebi!</h2>
-      <p style="color:#475569;line-height:1.6;"><strong>${renterName}</strong>, "<strong>${productTitle}</strong>" ilanınız için kiralama talebinde bulundu.</p>
+      <p style="color:#475569;line-height:1.6;"><strong>${escapeHtml(renterName)}</strong>, "<strong>${escapeHtml(productTitle)}</strong>" ilanınız için kiralama talebinde bulundu.</p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:8px 0;color:#94a3b8;font-size:13px;">Tarih Aralığı</td><td style="padding:8px 0;font-weight:700;color:#111;">${startDate} → ${endDate}</td></tr>
+        <tr><td style="padding:8px 0;color:#94a3b8;font-size:13px;">Tarih Aralığı</td><td style="padding:8px 0;font-weight:700;color:#111;">${escapeHtml(startDate)} → ${escapeHtml(endDate)}</td></tr>
         <tr><td style="padding:8px 0;color:#94a3b8;font-size:13px;">Toplam Tutar</td><td style="padding:8px 0;font-weight:700;color:#16a34a;font-size:18px;">${totalPrice.toLocaleString('tr-TR')} ₺</td></tr>
       </table>
       ${btn('Talebi İncele', `${BASE_URL}/hesabim`)}
@@ -79,14 +89,19 @@ export const emailTemplates = {
 };
 
 // Helper: send email via our API route (call from server-side or client-side)
-export async function sendEmail(to: string, template: { subject: string; html: string }) {
+export async function sendEmail(to: string, template: { subject: string; html: string }): Promise<void> {
     try {
-        await fetch(`${BASE_URL}/api/send-email`, {
+        const response = await fetch(`${BASE_URL}/api/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ to, subject: template.subject, html: template.html }),
         });
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`E-posta gönderilemedi (${response.status}): ${err}`);
+        }
     } catch (e) {
         console.error('[sendEmail]', e);
+        throw e;
     }
 }

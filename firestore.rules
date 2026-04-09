@@ -31,9 +31,14 @@ service cloud.firestore {
 
     // 2. ÜRÜNLER (Products)
     match /products/{productId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      // DİKKAT: Burada 'ownerId' kullandık (JavaScript standardı)
+      // Tekil okuma: aktif ilanlar herkese; diğerleri sahibi/admin'e
+      allow get: if resource.data.status == 'active'
+                 || (isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin()));
+      // Listeleme: admin her şeyi görebilir; diğerleri aktif ilanları veya kendi ilanlarını
+      allow list: if isAdmin()
+                  || resource.data.status == 'active'
+                  || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
 
       // Reviews subcollection
@@ -48,12 +53,13 @@ service cloud.firestore {
     // 3. KİRALAMALAR (Bookings)
     match /bookings/{bookingId} {
       allow read: if isSignedIn() && (
-        resource.data.renterId == request.auth.uid || 
+        resource.data.renterId == request.auth.uid ||
         resource.data.ownerId == request.auth.uid || // İlan sahibi de görebilmeli
         isAdmin()
       );
-      
-      allow create: if isSignedIn();
+
+      // renterId mutlaka oturum açan kullanıcının uid'si olmalı
+      allow create: if isSignedIn() && request.resource.data.renterId == request.auth.uid;
       
       // Onaylama işlemini ilan sahibi veya admin yapabilir
       allow update: if isSignedIn() && (
