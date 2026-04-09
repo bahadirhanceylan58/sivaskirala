@@ -117,21 +117,22 @@ const Navbar = () => {
                 {/* Search Bar - Hidden on mobile, visible on lg */}
                 <div className="hidden lg:flex flex-1 max-w-2xl mx-8 relative">
                     <input
+                        id="desktop-search"
                         type="text"
                         placeholder="Ürün, kategori veya marka ara..."
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                                window.location.href = `/arama?q=${(e.target as HTMLInputElement).value}`;
+                                const val = (e.target as HTMLInputElement).value.trim();
+                                if (val) window.location.href = `/arama?q=${encodeURIComponent(val)}`;
                             }
                         }}
                         className="w-full border border-gray-300 rounded-full py-2.5 pl-5 pr-12 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors hover:border-primary"
                     />
                     <button
                         onClick={() => {
-                            const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-                            if (input && input.value) {
-                                window.location.href = `/arama?q=${input.value}`;
-                            }
+                            const input = document.getElementById('desktop-search') as HTMLInputElement;
+                            const val = input?.value?.trim();
+                            if (val) window.location.href = `/arama?q=${encodeURIComponent(val)}`;
                         }}
                         className="absolute right-1 top-1/2 -translate-y-1/2 bg-primary text-white p-2 rounded-full hover:bg-green-700 transition-colors"
                     >
@@ -140,16 +141,15 @@ const Navbar = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-3">
                     {user ? (
                         <>
-                            <Link href="/ilan-ver" className="text-gray-600 hover:text-primary transition-colors flex flex-col items-center group">
+                            {/* Masaüstü: tüm ikonlar */}
+                            <Link href="/ilan-ver" className="hidden lg:flex text-gray-600 hover:text-primary transition-colors flex-col items-center group">
                                 <PlusCircleIcon className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" />
                                 <span className="text-xs font-medium">İlan Ver</span>
                             </Link>
-
-                            {/* Messages */}
-                            <Link href="/mesajlar" className="relative text-gray-600 hover:text-primary transition-colors flex flex-col items-center group">
+                            <Link href="/mesajlar" className="hidden lg:flex relative text-gray-600 hover:text-primary transition-colors flex-col items-center group">
                                 <div className="relative">
                                     <ChatBubbleLeftRightIcon className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" />
                                     {unreadMessages > 0 && (
@@ -160,11 +160,10 @@ const Navbar = () => {
                                 </div>
                                 <span className="text-xs font-medium">Mesajlar</span>
                             </Link>
-
-                            {/* Notification Dropdown */}
-                            <NotificationDropdown />
-
-                            <Link href="/hesabim" className="text-gray-600 hover:text-primary transition-colors flex flex-col items-center group">
+                            <div className="hidden lg:block">
+                                <NotificationDropdown />
+                            </div>
+                            <Link href="/hesabim" className="hidden lg:flex text-gray-600 hover:text-primary transition-colors flex-col items-center group">
                                 <UserCircleIcon className="w-6 h-6 mb-1 group-hover:scale-110 transition-transform" />
                                 <span className="text-xs font-medium">Hesabım</span>
                             </Link>
@@ -180,8 +179,8 @@ const Navbar = () => {
                             </Link>
                         </>
                     )}
-                    <Link href="/cart" className="relative group">
-                        <ShoppingCartIcon className="h-6 w-6" />
+                    <Link href="/cart" className="relative group p-1">
+                        <ShoppingCartIcon className="h-6 w-6 text-gray-700" />
                         {cartCount > 0 && (
                             <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center animate-scale-in">{cartCount}</span>
                         )}
@@ -189,7 +188,7 @@ const Navbar = () => {
 
                     {/* Mobile Menu Button */}
                     <button
-                        className="lg:hidden text-gray-700 hover:text-primary transition-colors"
+                        className="lg:hidden text-gray-700 hover:text-primary transition-colors p-1"
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     >
                         {isMobileMenuOpen ? (
@@ -226,8 +225,8 @@ const Navbar = () => {
                                 className="w-full border border-gray-300 rounded-lg py-2 pl-3 pr-10 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
-                                        const val = (e.target as HTMLInputElement).value;
-                                        if (val) { setIsMobileMenuOpen(false); window.location.href = `/arama?q=${val}`; }
+                                        const val = (e.target as HTMLInputElement).value.trim();
+                                        if (val) { setIsMobileMenuOpen(false); window.location.href = `/arama?q=${encodeURIComponent(val)}`; }
                                     }
                                 }}
                             />
@@ -256,7 +255,7 @@ const Navbar = () => {
                                         </Link>
                                         <Link href="/hesabim" className="flex items-center space-x-2 text-gray-700 hover:text-primary font-medium">
                                             <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-primary font-bold text-xs">
-                                                {user.fullName.charAt(0)}
+                                                {(user.fullName || 'K').charAt(0)}
                                             </div>
                                             <span>Hesabım</span>
                                         </Link>

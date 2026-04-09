@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
 import { StarIcon, HeartIcon, ShareIcon, PhoneIcon, ChatBubbleLeftIcon, ShieldCheckIcon, MapPinIcon, CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/solid";
-import { HeartIcon as HeartOutlineIcon } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartOutlineIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useEffect, useState, use } from "react";
 import ReviewList from "@/components/ReviewList";
@@ -56,6 +56,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
     // Gallery state
     const [activeImage, setActiveImage] = useState(0);
+    const [isZoomed, setIsZoomed] = useState(false);
 
     // Booking state
     const [startDate, setStartDate] = useState('');
@@ -295,9 +296,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                                 <img
                                     src={allImages[activeImage] || '/placeholder-product.png'}
                                     alt={product.title}
-                                    className="w-full h-full object-contain transition-all duration-500 p-2"
+                                    className="w-full h-full object-contain transition-all duration-500 p-2 cursor-zoom-in"
+                                    onClick={() => setIsZoomed(true)}
                                     onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png'; }}
                                 />
+                                {/* Zoom hint */}
+                                <div className="absolute bottom-3 left-3 bg-black/40 text-white text-[10px] px-2 py-1 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                    🔍 Büyütmek için tıkla
+                                </div>
                                 {/* Prev/Next arrows for multiple images */}
                                 {allImages.length > 1 && (
                                     <>
@@ -684,6 +690,55 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     userName={currentUser.displayName || 'Kullanıcı'}
                     onReviewSubmitted={() => setIsReviewModalOpen(false)}
                 />
+            )}
+
+            {/* Image Zoom Modal */}
+            {isZoomed && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+                    onClick={() => setIsZoomed(false)}
+                >
+                    <button
+                        className="absolute top-4 right-4 text-white bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors"
+                        onClick={() => setIsZoomed(false)}
+                    >
+                        <XMarkIcon className="h-6 w-6" />
+                    </button>
+                    {allImages.length > 1 && (
+                        <>
+                            <button
+                                className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setActiveImage(i => (i - 1 + allImages.length) % allImages.length); }}
+                            >
+                                <ChevronLeftIcon className="h-6 w-6" />
+                            </button>
+                            <button
+                                className="absolute right-14 top-1/2 -translate-y-1/2 text-white bg-white/20 hover:bg-white/30 rounded-full p-2 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setActiveImage(i => (i + 1) % allImages.length); }}
+                            >
+                                <ChevronRightIcon className="h-6 w-6" />
+                            </button>
+                        </>
+                    )}
+                    <img
+                        src={allImages[activeImage] || '/placeholder-product.png'}
+                        alt={product.title}
+                        className="max-w-full max-h-full object-contain rounded-lg"
+                        onClick={(e) => e.stopPropagation()}
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png'; }}
+                    />
+                    {allImages.length > 1 && (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                            {allImages.map((_, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={(e) => { e.stopPropagation(); setActiveImage(idx); }}
+                                    className={`w-2 h-2 rounded-full transition-colors ${activeImage === idx ? 'bg-white' : 'bg-white/40'}`}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
             )}
 
             <Footer />
