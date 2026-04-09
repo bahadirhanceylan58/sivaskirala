@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 const CONTACT_INFO = [
     { icon: '📧', label: 'E-posta', value: 'info@sivaskirala.com', href: 'mailto:info@sivaskirala.com' },
-    { icon: '📱', label: 'Telefon', value: '+90 555 555 55 55', href: 'tel:+905555555555' },
+    { icon: '📱', label: 'Telefon', value: '0530 112 06 62', href: 'tel:+905301120662' },
     { icon: '📍', label: 'Adres', value: 'Sivas, Türkiye', href: null },
     { icon: '🕐', label: 'Çalışma Saatleri', value: 'Hft. içi 09:00 – 18:00', href: null },
 ];
